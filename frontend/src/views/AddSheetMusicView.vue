@@ -1,11 +1,11 @@
 <template>
   <section class="container py-5 add-sheet-page">
     <div class="text-center mb-4">
-      <span class="badge bg-gold mb-3 animate-fade-scale">Seller Portal</span>
       <h1 class="section-title animate-fade-up">Add New Sheet Music</h1>
       <p class="text-muted animate-fade-up delay-1">
         Publish a new score in your marketplace catalog.
       </p>
+      <span class="badge bg-gold mb-3 animate-fade-scale">Seller Portal</span>
     </div>
 
     <div class="card form-card animate-fade-scale delay-2">

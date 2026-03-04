@@ -128,12 +128,16 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import SheetCard from '../components/SheetCard.vue'
 import { useSheetMusicStore } from '../stores/sheetMusic'
 import { Piano, Guitar, Music } from 'lucide-vue-next'
 
 const sheetStore = useSheetMusicStore()
+
+onMounted(() => {
+  sheetStore.fetchSheets()
+})
 
 const instruments = ref([
   { name: 'Piano', icon: Piano, count: 245, popularity: 85 },
@@ -141,7 +145,7 @@ const instruments = ref([
   { name: 'Guitar', icon: Guitar, count: 156, popularity: 60 },
 ])
 
-const featuredSheets = ref(sheetStore.sheets.slice(0, 3))
+const featuredSheets = computed(() => sheetStore.sheets.slice(0, 3))
 
 const testimonials = ref([
   {

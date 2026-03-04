@@ -3,7 +3,7 @@
     <div class="position-relative">
       <router-link :to="'/sheet/' + sheet.id" class="text-decoration-none">
         <div class="image-wrapper">
-          <img :src="sheet.coverImage" class="card-img-top" :alt="sheet.title" />
+          <img :src="sheet.cover_image" class="card-img-top" :alt="sheet.title" />
           <div class="image-overlay">
             <div class="overlay-content">
               <i class="bi bi-eye"></i>
@@ -61,7 +61,7 @@
 
       <div class="d-flex justify-content-between align-items-center">
         <div class="price-wrapper">
-          <span class="price-tag">${{ sheet.price.toFixed(2) }}</span>
+          <span class="price-tag">${{ Number(sheet.price).toFixed(2) }}</span>
           <small class="text-muted ms-2">PDF</small>
         </div>
         <button class="btn btn-primary btn-sm rounded-pill px-4" @click="addToCart">
