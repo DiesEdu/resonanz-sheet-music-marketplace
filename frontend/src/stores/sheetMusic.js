@@ -93,5 +93,27 @@ export const useSheetMusicStore = defineStore('sheetMusic', () => {
     },
   ])
 
-  return { sheets }
+  function addSheet(payload) {
+    const nextId =
+      sheets.value.length > 0 ? Math.max(...sheets.value.map((sheet) => sheet.id || 0)) + 1 : 1
+
+    const newSheet = {
+      id: nextId,
+      title: payload.title,
+      composer: payload.composer,
+      instrument: payload.instrument,
+      difficulty: payload.difficulty,
+      price: Number(payload.price),
+      description: payload.description,
+      coverImage: payload.coverImage,
+      pages: Number(payload.pages),
+      format: payload.format,
+      rating: 0,
+      reviews: 0,
+    }
+
+    sheets.value.unshift(newSheet)
+  }
+
+  return { sheets, addSheet }
 })

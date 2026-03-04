@@ -122,27 +122,94 @@ class SheetController
 
         $data = json_decode(file_get_contents("php://input"), true);
 
-        if (!empty($data['title']) && !empty($data['composer'])) {
-            // Handle file uploads
-            $file_path = $this->handleFileUpload('file');
-            $cover_image = $this->handleFileUpload('cover');
-            $sample_path = $this->handleFileUpload('sample');
-
-            $data['file_path'] = $file_path;
-            $data['cover_image'] = $cover_image;
-            $data['sample_path'] = $sample_path;
-
-            if ($this->sheet->create($data)) {
-                http_response_code(201);
-                echo json_encode(['message' => 'Sheet music created successfully']);
-            } else {
-                http_response_code(500);
-                echo json_encode(['error' => 'Unable to create sheet music']);
-            }
-        } else {
+        if (empty($data['title']) || empty($data['composer'])) {
             http_response_code(400);
             echo json_encode(['error' => 'Incomplete data']);
+            return;
         }
+
+        $requiredFields = ['instrument_id', 'category_id', 'difficulty', 'price', 'pages', 'format'];
+        foreach ($requiredFields as $field) {
+            if (!isset($data[$field]) || $data[$field] === '') {
+                http_response_code(400);
+                echo json_encode(['error' => "Missing required field: {$field}"]);
+                return;
+            }
+        }
+
+        $normalizedData = [
+            'title' => trim((string) $data['title']),
+            'composer' => trim((string) $data['composer']),
+            'description' => trim((string) ($data['description'] ?? '')),
+            'instrument_id' => (int) $data['instrument_id'],
+            'category_id' => (int) $data['category_id'],
+            'difficulty' => trim((string) $data['difficulty']),
+            'price' => (float) $data['price'],
+            'pages' => (int) $data['pages'],
+            'format' => trim((string) $data['format']),
+            'file_path' => trim((string) ($data['file_path'] ?? '')),
+            'cover_image' => trim((string) ($data['cover_image'] ?? '')),
+            'is_featured' => !empty($data['is_featured']) ? 1 : 0,
+            'is_premium' => !empty($data['is_premium']) ? 1 : 0,
+            'rating' => isset($data['rating']) ? (float) $data['rating'] : 0.0,
+            'reviews_count' => isset($data['reviews_count']) ? (int) $data['reviews_count'] : 0,
+            'downloads_count' => isset($data['downloads_count']) ? (int) $data['downloads_count'] : 0,
+            'views_count' => isset($data['views_count']) ? (int) $data['views_count'] : 0
+        ];
+
+        if ($normalizedData['price'] < 0 || $normalizedData['pages'] < 1) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid price or pages value']);
+            return;
+        }
+
+        if ($this->addSheetMusic($normalizedData)) {
+            $sheetId = (int) $this->db->lastInsertId();
+            http_response_code(201);
+            echo json_encode([
+                'message' => 'Sheet music created successfully',
+                'id' => $sheetId
+            ]);
+            return;
+        }
+
+        http_response_code(500);
+        echo json_encode(['error' => 'Unable to create sheet music']);
+    }
+
+    private function addSheetMusic($data)
+    {
+        $query = "INSERT INTO sheet_music (
+            title, composer, description, instrument_id, category_id,
+            difficulty, price, pages, format, file_path, cover_image,
+            is_featured, is_premium, rating, reviews_count, downloads_count, views_count
+        ) VALUES (
+            :title, :composer, :description, :instrument_id, :category_id,
+            :difficulty, :price, :pages, :format, :file_path, :cover_image,
+            :is_featured, :is_premium, :rating, :reviews_count, :downloads_count, :views_count
+        )";
+
+        $stmt = $this->db->prepare($query);
+
+        return $stmt->execute([
+            ':title' => $data['title'],
+            ':composer' => $data['composer'],
+            ':description' => $data['description'],
+            ':instrument_id' => $data['instrument_id'],
+            ':category_id' => $data['category_id'],
+            ':difficulty' => $data['difficulty'],
+            ':price' => $data['price'],
+            ':pages' => $data['pages'],
+            ':format' => $data['format'],
+            ':file_path' => $data['file_path'],
+            ':cover_image' => $data['cover_image'],
+            ':is_featured' => $data['is_featured'],
+            ':is_premium' => $data['is_premium'],
+            ':rating' => $data['rating'],
+            ':reviews_count' => $data['reviews_count'],
+            ':downloads_count' => $data['downloads_count'],
+            ':views_count' => $data['views_count']
+        ]);
     }
 
     private function update($id)

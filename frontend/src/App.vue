@@ -166,6 +166,7 @@ const displayName = computed(() => authUser.value?.full_name || authUser.value?.
 const navItems = computed(() => [
   { name: 'Home', path: '/', icon: 'bi bi-house-door' },
   { name: 'Marketplace', path: '/marketplace', icon: 'bi bi-shop' },
+  { name: 'Add Sheet', path: '/add-sheet', icon: 'bi bi-file-earmark-plus' },
   { name: 'Cart', path: '/cart', icon: 'bi bi-cart' },
   ...(isLoggedIn.value
     ? []

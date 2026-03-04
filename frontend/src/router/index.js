@@ -34,6 +34,11 @@ const router = createRouter({
       name: 'register',
       component: () => import('../views/RegisterView.vue'),
     },
+    {
+      path: '/add-sheet',
+      name: 'add-sheet',
+      component: () => import('../views/AddSheetMusicView.vue'),
+    },
   ],
 })
 
