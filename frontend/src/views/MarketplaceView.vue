@@ -300,8 +300,8 @@ function goToNextPage() {
   }
 }
 
-function addToCart(sheet) {
-  cartStore.addToCart(sheet)
+async function addToCart(sheet) {
+  await cartStore.addToCart(sheet, 1)
   // Show toast notification
 }
 

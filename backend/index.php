@@ -1,6 +1,21 @@
 <?php
 // index.php
-header("Access-Control-Allow-Origin: *");
+// CORS: credentials require a specific origin (not *)
+$allowed_origins = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173'
+];
+
+$request_origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if (in_array($request_origin, $allowed_origins, true)) {
+    header("Access-Control-Allow-Origin: " . $request_origin);
+    header("Vary: Origin");
+    header("Access-Control-Allow-Credentials: true");
+} else {
+    // Non-browser or untrusted origin fallback.
+    header("Access-Control-Allow-Origin: *");
+}
+
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Max-Age: 3600");

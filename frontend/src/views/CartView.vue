@@ -29,14 +29,19 @@
                   <div class="d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
                       <label class="me-2">Qty:</label>
-                      <select
-                        class="form-select form-select-sm"
-                        style="width: auto"
-                        :value="item.quantity"
-                        @change="updateQuantity(item.id, $event.target.value)"
-                      >
-                        <option v-for="n in 10" :key="n" :value="n">{{ n }}</option>
-                      </select>
+                      <div class="btn-group" role="group" aria-label="Quantity controls">
+                        <button
+                          class="btn btn-outline-secondary btn-sm"
+                          :disabled="item.quantity <= 1"
+                          @click="changeQuantity(item, -1)"
+                        >
+                          -
+                        </button>
+                        <span class="btn btn-light btn-sm disabled">{{ item.quantity }}</span>
+                        <button class="btn btn-outline-secondary btn-sm" @click="changeQuantity(item, 1)">
+                          +
+                        </button>
+                      </div>
                     </div>
                     <h5 class="text-primary mb-0">
                       ${{ (item.price * item.quantity).toFixed(2) }}
@@ -88,8 +93,9 @@ function removeItem(id) {
   cartStore.removeFromCart(id)
 }
 
-function updateQuantity(id, quantity) {
-  cartStore.updateQuantity(id, parseInt(quantity))
+async function changeQuantity(item, delta) {
+  const nextQuantity = Math.max(1, Number(item.quantity) + delta)
+  await cartStore.updateQuantity(item.id, nextQuantity)
 }
 
 function checkout() {

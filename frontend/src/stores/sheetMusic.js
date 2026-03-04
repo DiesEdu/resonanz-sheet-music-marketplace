@@ -54,7 +54,6 @@ export const useSheetMusicStore = defineStore('sheetMusic', () => {
         difficulty: difficulty || '',
         search: search || '',
       })
-      console.log(queryParams)
       const response = await fetch(`${API_BASE_URL}/sheets?${queryParams}`)
       const result = await response.json()
 
