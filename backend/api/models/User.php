@@ -49,6 +49,7 @@ class User
 
         if ($stmt->execute()) {
             $this->id = $this->conn->lastInsertId();
+            $this->role = 'user';
             return true;
         }
         return false;
@@ -167,6 +168,31 @@ class User
         $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getAll()
+    {
+        $query = "SELECT id, username, email, full_name, role, created_at
+                  FROM " . $this->table . "
+                  ORDER BY created_at DESC";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function updateRole($id, $role)
+    {
+        $query = "UPDATE " . $this->table . "
+                  SET role = :role
+                  WHERE id = :id";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':role', $role);
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+
+        return $stmt->execute();
     }
 }
 ?>

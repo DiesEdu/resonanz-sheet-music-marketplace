@@ -161,12 +161,22 @@ onBeforeUnmount(() => {
 })
 
 const isLoggedIn = computed(() => !!authUser.value)
+const isAdmin = computed(() => authUser.value?.role === 'admin')
+const isComposer = computed(() => authUser.value?.role === 'composer')
 const displayName = computed(() => authUser.value?.full_name || authUser.value?.username || 'User')
 
 const navItems = computed(() => [
   { name: 'Home', path: '/', icon: 'bi bi-house-door' },
   { name: 'Marketplace', path: '/marketplace', icon: 'bi bi-shop' },
-  { name: 'Add Sheet', path: '/add-sheet', icon: 'bi bi-file-earmark-plus' },
+  ...(isComposer.value
+    ? [{ name: 'Add Sheet', path: '/composer/add-sheet', icon: 'bi bi-file-earmark-plus' }]
+    : []),
+  ...(isAdmin.value
+    ? [
+        { name: 'Add Sheet', path: '/composer/add-sheet', icon: 'bi bi-file-earmark-plus' },
+        { name: 'Users', path: '/admin/users', icon: 'bi bi-people' },
+      ]
+    : []),
   { name: 'Cart', path: '/cart', icon: 'bi bi-cart' },
   ...(isLoggedIn.value
     ? []

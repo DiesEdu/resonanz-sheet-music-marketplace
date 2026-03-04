@@ -116,7 +116,8 @@ class AuthController
                         'id' => $this->user->id,
                         'username' => $this->user->username,
                         'email' => $this->user->email,
-                        'full_name' => $this->user->full_name
+                        'full_name' => $this->user->full_name,
+                        'role' => $this->user->role
                     ]
                 ]);
             } else {

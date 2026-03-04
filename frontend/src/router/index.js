@@ -35,11 +35,55 @@ const router = createRouter({
       component: () => import('../views/RegisterView.vue'),
     },
     {
-      path: '/add-sheet',
+      path: '/composer/add-sheet',
       name: 'add-sheet',
       component: () => import('../views/AddSheetMusicView.vue'),
+      meta: { requiresComposer: true },
+    },
+    {
+      path: '/admin/users',
+      name: 'user-management',
+      component: () => import('../views/UserManagementView.vue'),
+      meta: { requiresAdmin: true },
     },
   ],
+})
+
+function getAuthUser() {
+  const rawUser = localStorage.getItem('auth_user')
+  if (!rawUser) return null
+
+  try {
+    return JSON.parse(rawUser)
+  } catch {
+    return null
+  }
+}
+
+router.beforeEach((to) => {
+  if (!to.meta.requiresAdmin) {
+    return true
+  }
+
+  const authUser = getAuthUser()
+  if (authUser?.role === 'admin') {
+    return true
+  }
+
+  return { name: 'home' }
+})
+
+router.beforeEach((to) => {
+  if (!to.meta.requiresComposer) {
+    return true
+  }
+
+  const authUser = getAuthUser()
+  if (authUser?.role === 'composer' || authUser?.role === 'admin') {
+    return true
+  }
+
+  return { name: 'home' }
 })
 
 export default router

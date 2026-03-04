@@ -73,6 +73,11 @@ try {
             $controller = new SheetMusic\Controllers\OrderController();
             $controller->handleRequest($_SERVER['REQUEST_METHOD'], $id, $action);
             break;
+        case 'users':
+            require_once __DIR__ . '/api/controllers/UserController.php';
+            $controller = new SheetMusic\Controllers\UserController();
+            $controller->handleRequest($_SERVER['REQUEST_METHOD'], $id, $action);
+            break;
 
         case 'categories':
             require_once __DIR__ . '/api/controllers/CategoryController.php';
