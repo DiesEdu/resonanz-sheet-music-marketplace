@@ -23,8 +23,15 @@ class CartController
 
     public function handleRequest($method, $id = null, $action = null)
     {
-        // Get or create cart ID from session or user
-        $session_id = session_id() ?: bin2hex(random_bytes(16));
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        // Keep a stable guest cart key across requests.
+        if (empty($_SESSION['cart_session_id'])) {
+            $_SESSION['cart_session_id'] = bin2hex(random_bytes(16));
+        }
+        $session_id = $_SESSION['cart_session_id'];
 
         // Try to authenticate user
         try {
@@ -44,24 +51,37 @@ class CartController
                 break;
 
             case 'POST':
-                if ($action === 'add') {
+                $postAction = $action ?? $id;
+                if ($postAction === 'add') {
                     $this->addToCart($cart_id);
-                } elseif ($action === 'merge') {
+                } elseif ($postAction === 'merge') {
                     $this->mergeCarts($cart_id, $user_id);
+                } else {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Invalid cart action']);
                 }
                 break;
 
             case 'PUT':
-                if ($action === 'update' && $id) {
-                    $this->updateQuantity($cart_id, $id);
+                // Supports both /cart/{sheet_id}/update and /cart/update/{sheet_id}
+                if ($action === 'update' && $id && is_numeric($id)) {
+                    $this->updateQuantity($cart_id, (int) $id);
+                } elseif ($id === 'update' && $action && is_numeric($action)) {
+                    $this->updateQuantity($cart_id, (int) $action);
+                } else {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Invalid update request']);
                 }
                 break;
 
             case 'DELETE':
-                if ($id) {
-                    $this->removeFromCart($cart_id, $id);
-                } else {
+                if ($id && is_numeric($id)) {
+                    $this->removeFromCart($cart_id, (int) $id);
+                } elseif ($id === 'clear' || $id === null) {
                     $this->clearCart($cart_id);
+                } else {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Invalid delete request']);
                 }
                 break;
 

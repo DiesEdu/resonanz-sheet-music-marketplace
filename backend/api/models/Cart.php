@@ -66,6 +66,14 @@ class Cart
 
     public function addItem($cart_id, $sheet_id, $quantity = 1)
     {
+        $cart_id = (int) $cart_id;
+        $sheet_id = (int) $sheet_id;
+        $quantity = (int) $quantity;
+
+        if ($cart_id <= 0 || $sheet_id <= 0 || $quantity <= 0) {
+            return false;
+        }
+
         // Check if item already exists
         $check_query = "SELECT * FROM cart_items WHERE cart_id = :cart_id AND sheet_id = :sheet_id";
         $check_stmt = $this->conn->prepare($check_query);
@@ -84,7 +92,12 @@ class Cart
             $price_stmt = $this->conn->prepare($price_query);
             $price_stmt->bindParam(':sheet_id', $sheet_id);
             $price_stmt->execute();
-            $price = $price_stmt->fetch(PDO::FETCH_ASSOC)['price'];
+            $price_row = $price_stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$price_row || !isset($price_row['price'])) {
+                return false;
+            }
+            $price = $price_row['price'];
 
             // Insert new item
             $query = "INSERT INTO cart_items (cart_id, sheet_id, quantity, price) 
