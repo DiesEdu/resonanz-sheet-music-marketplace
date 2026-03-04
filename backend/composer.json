@@ -1,0 +1,15 @@
+{
+  "name": "sheetmusic/marketplace",
+  "description": "Sheet Music Marketplace API",
+  "type": "project",
+  "require": {
+    "php": ">=7.4",
+    "firebase/php-jwt": "^7.0",
+    "phpmailer/phpmailer": "^7.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "SheetMusic\\": "api/"
+    }
+  }
+}
