@@ -118,7 +118,7 @@ class SheetController
     private function create()
     {
         // Check admin access
-        AuthMiddleware::requireAdmin();
+        $userData = AuthMiddleware::requireComposer();
 
         $data = json_decode(file_get_contents("php://input"), true);
 
@@ -154,7 +154,8 @@ class SheetController
             'rating' => isset($data['rating']) ? (float) $data['rating'] : 0.0,
             'reviews_count' => isset($data['reviews_count']) ? (int) $data['reviews_count'] : 0,
             'downloads_count' => isset($data['downloads_count']) ? (int) $data['downloads_count'] : 0,
-            'views_count' => isset($data['views_count']) ? (int) $data['views_count'] : 0
+            'views_count' => isset($data['views_count']) ? (int) $data['views_count'] : 0,
+            'created_by' => (int) ($userData['id'] ?? 0)
         ];
 
         if ($normalizedData['price'] < 0 || $normalizedData['pages'] < 1) {
@@ -182,11 +183,11 @@ class SheetController
         $query = "INSERT INTO sheet_music (
             title, composer, description, instrument_id, category_id,
             difficulty, price, pages, format, file_path, cover_image,
-            is_featured, is_premium, rating, reviews_count, downloads_count, views_count
+            is_featured, is_premium, rating, reviews_count, downloads_count, views_count, created_by
         ) VALUES (
             :title, :composer, :description, :instrument_id, :category_id,
             :difficulty, :price, :pages, :format, :file_path, :cover_image,
-            :is_featured, :is_premium, :rating, :reviews_count, :downloads_count, :views_count
+            :is_featured, :is_premium, :rating, :reviews_count, :downloads_count, :views_count, :created_by
         )";
 
         $stmt = $this->db->prepare($query);
@@ -208,14 +209,15 @@ class SheetController
             ':rating' => $data['rating'],
             ':reviews_count' => $data['reviews_count'],
             ':downloads_count' => $data['downloads_count'],
-            ':views_count' => $data['views_count']
+            ':views_count' => $data['views_count'],
+            ':created_by' => $data['created_by']
         ]);
     }
 
     private function update($id)
     {
         // Check admin access
-        AuthMiddleware::requireAdmin();
+        AuthMiddleware::requireComposer();
 
         $data = json_decode(file_get_contents("php://input"), true);
 
@@ -231,7 +233,7 @@ class SheetController
     private function delete($id)
     {
         // Check admin access
-        AuthMiddleware::requireAdmin();
+        AuthMiddleware::requireComposer();
 
         if ($this->sheet->delete($id)) {
             http_response_code(200);

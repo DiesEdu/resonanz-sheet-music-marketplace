@@ -30,13 +30,13 @@ class AuthMiddleware
         }
     }
 
-    public static function requireAdmin()
+    public static function requireComposer()
     {
         $user = self::authenticate();
 
-        if ($user['role'] !== 'admin') {
+        if ($user['role'] !== 'admin' && $user['role'] !== 'composer') {
             http_response_code(403);
-            echo json_encode(['error' => 'Admin access required']);
+            echo json_encode(['error' => 'Admin/Composer access required']);
             exit();
         }
 

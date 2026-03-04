@@ -128,7 +128,7 @@ class OrderController
     private function updateStatus($order_id)
     {
         // Check admin access
-        AuthMiddleware::requireAdmin();
+        AuthMiddleware::requireComposer();
 
         $data = json_decode(file_get_contents("php://input"));
 

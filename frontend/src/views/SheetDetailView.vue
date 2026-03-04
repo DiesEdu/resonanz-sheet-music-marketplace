@@ -2,7 +2,7 @@
   <div class="container py-5" v-if="sheet">
     <div class="row">
       <div class="col-md-5">
-        <img :src="sheet.coverImage" :alt="sheet.title" class="img-fluid rounded shadow" />
+        <img :src="sheet.cover_image" :alt="sheet.title" class="img-fluid rounded shadow" />
       </div>
       <div class="col-md-7">
         <h1>{{ sheet.title }}</h1>
@@ -34,7 +34,7 @@
         </div>
 
         <div class="d-flex align-items-center mb-4">
-          <h2 class="text-primary mb-0 me-4">${{ sheet.price.toFixed(2) }}</h2>
+          <h2 class="text-primary mb-0 me-4">${{ Number(sheet.price).toFixed(2) }}</h2>
           <button class="btn btn-primary btn-lg" @click="addToCart">
             <i class="bi bi-cart-plus"></i> Add to Cart
           </button>

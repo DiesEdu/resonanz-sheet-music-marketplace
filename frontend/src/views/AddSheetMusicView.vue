@@ -3,7 +3,7 @@
     <div class="text-center mb-4">
       <h1 class="section-title animate-fade-up">Add New Sheet Music</h1>
       <p class="text-muted animate-fade-up delay-1">
-        Publish a new score in your marketplace catalog.
+        {{ isEditMode ? 'Update your score from marketplace catalog.' : 'Publish a new score in your marketplace catalog.' }}
       </p>
       <span class="badge bg-gold mb-3 animate-fade-scale">Seller Portal</span>
     </div>
@@ -126,7 +126,16 @@
 
           <div class="col-12 d-flex gap-2 pt-2">
             <button type="submit" class="btn btn-primary">
-              <i class="bi bi-plus-circle me-1"></i> Publish Sheet Music
+              <i :class="isEditMode ? 'bi bi-save me-1' : 'bi bi-plus-circle me-1'"></i>
+              {{ isEditMode ? 'Update Sheet Music' : 'Publish Sheet Music' }}
+            </button>
+            <button
+              v-if="isEditMode"
+              type="button"
+              class="btn btn-outline-secondary"
+              @click="cancelEdit"
+            >
+              Cancel Edit
             </button>
             <router-link to="/marketplace" class="btn btn-outline-primary">
               Back to Marketplace
@@ -135,11 +144,89 @@
         </form>
       </div>
     </div>
+
+    <div class="card list-card animate-fade-scale delay-2 mt-4">
+      <div class="card-body p-4 p-md-5">
+        <h2 class="h5 mb-3">My Sheet Music</h2>
+
+        <div v-if="isLoadingList" class="text-muted">Loading your sheet music...</div>
+
+        <div v-else-if="mySheets.length === 0" class="text-muted">
+          No sheet music found for your account.
+        </div>
+
+        <div v-else class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Composer</th>
+                <th>Instrument</th>
+                <th>Difficulty</th>
+                <th class="text-end">Price</th>
+                <th class="text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="sheet in paginatedMySheets" :key="sheet.id">
+                <td>{{ sheet.title }}</td>
+                <td>{{ sheet.composer || '-' }}</td>
+                <td>{{ sheet.instrument_name || sheet.instrument || '-' }}</td>
+                <td>{{ sheet.difficulty || '-' }}</td>
+                <td class="text-end">{{ formatPrice(sheet.price) }}</td>
+                <td class="text-center">
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-primary"
+                    title="Edit"
+                    @click="startEdit(sheet)"
+                  >
+                    <i class="bi bi-pen"></i>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="mySheets.length > pageSize" class="d-flex justify-content-between align-items-center mt-3">
+          <small class="text-muted">Page {{ currentPage }} of {{ totalPages }}</small>
+          <div class="d-flex gap-2">
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary"
+              :disabled="currentPage === 1"
+              @click="goToPage(currentPage - 1)"
+            >
+              Prev
+            </button>
+            <button
+              v-for="page in totalPages"
+              :key="page"
+              type="button"
+              class="btn btn-sm"
+              :class="page === currentPage ? 'btn-primary' : 'btn-outline-secondary'"
+              @click="goToPage(page)"
+            >
+              {{ page }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary"
+              :disabled="currentPage === totalPages"
+              @click="goToPage(currentPage + 1)"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useSheetMusicStore } from '../stores/sheetMusic'
 
 const sheetStore = useSheetMusicStore()
@@ -160,6 +247,43 @@ const form = reactive({
 
 const errorMessage = ref('')
 const successMessage = ref('')
+const isLoadingList = ref(true)
+const editingSheetId = ref(null)
+const currentPage = ref(1)
+const pageSize = 5
+
+const currentUserId = computed(() => {
+  try {
+    const raw = localStorage.getItem('auth_user')
+    if (!raw) return null
+    const user = JSON.parse(raw)
+    return Number(user?.id) || null
+  } catch {
+    return null
+  }
+})
+
+const mySheets = computed(() => {
+  if (!currentUserId.value) return []
+  return (sheetStore.sheets || []).filter((sheet) => Number(sheet.created_by) === currentUserId.value)
+})
+const isEditMode = computed(() => editingSheetId.value !== null)
+const totalPages = computed(() => Math.max(1, Math.ceil(mySheets.value.length / pageSize)))
+const paginatedMySheets = computed(() => {
+  const start = (currentPage.value - 1) * pageSize
+  return mySheets.value.slice(start, start + pageSize)
+})
+
+function formatPrice(price) {
+  const numericPrice = Number(price)
+  if (Number.isNaN(numericPrice)) return '-'
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(numericPrice)
+}
+
+function goToPage(page) {
+  if (page < 1 || page > totalPages.value) return
+  currentPage.value = page
+}
 
 function resetForm() {
   form.title = ''
@@ -173,7 +297,42 @@ function resetForm() {
   form.description = ''
 }
 
-function handleSubmit() {
+function startEdit(sheet) {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+  editingSheetId.value = Number(sheet.id)
+  form.title = sheet.title || ''
+  form.composer = sheet.composer || ''
+  form.instrument = sheet.instrument || sheet.instrument_name || ''
+  form.difficulty = sheet.difficulty || ''
+  form.format = sheet.format || 'PDF'
+  form.price = Number(sheet.price) || 0
+  form.pages = Number(sheet.pages) || 1
+  form.coverImage = sheet.coverImage || sheet.cover_image || ''
+  form.description = sheet.description || ''
+  errorMessage.value = ''
+  successMessage.value = ''
+}
+
+watch(
+  mySheets,
+  () => {
+    if (currentPage.value > totalPages.value) {
+      currentPage.value = totalPages.value
+    }
+  },
+  { immediate: true },
+)
+
+function cancelEdit(clearMessages = true) {
+  editingSheetId.value = null
+  resetForm()
+  if (clearMessages) {
+    errorMessage.value = ''
+    successMessage.value = ''
+  }
+}
+
+async function handleSubmit() {
   errorMessage.value = ''
   successMessage.value = ''
 
@@ -200,10 +359,29 @@ function handleSubmit() {
     return
   }
 
-  sheetStore.addSheet({ ...form })
-  successMessage.value = 'Sheet music published successfully.'
-  resetForm()
+  try {
+    if (isEditMode.value) {
+      await sheetStore.updateSheet(editingSheetId.value, { ...form })
+      successMessage.value = 'Sheet music updated successfully.'
+      cancelEdit(false)
+      return
+    }
+
+    await sheetStore.addSheet({ ...form, created_by: currentUserId.value })
+    successMessage.value = 'Sheet music published successfully.'
+    resetForm()
+  } catch (error) {
+    errorMessage.value = error?.message || 'Failed to save sheet music.'
+  }
 }
+
+onMounted(async () => {
+  try {
+    await sheetStore.fetchSheets()
+  } finally {
+    isLoadingList.value = false
+  }
+})
 </script>
 
 <style scoped>
@@ -212,6 +390,12 @@ function handleSubmit() {
 }
 
 .form-card {
+  max-width: 900px;
+  margin: 0 auto;
+  border-radius: 24px;
+}
+
+.list-card {
   max-width: 900px;
   margin: 0 auto;
   border-radius: 24px;

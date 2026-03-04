@@ -39,7 +39,7 @@ class UserController
 
     private function getAllUsers()
     {
-        AuthMiddleware::requireAdmin();
+        AuthMiddleware::requireComposer();
 
         $users = $this->user->getAll();
         http_response_code(200);
@@ -48,7 +48,7 @@ class UserController
 
     private function updateUserRole($targetUserId)
     {
-        $adminUser = AuthMiddleware::requireAdmin();
+        $adminUser = AuthMiddleware::requireComposer();
         $data = json_decode(file_get_contents("php://input"), true);
 
         if (empty($data['role']) || !in_array($data['role'], $this->allowedRoles, true)) {
