@@ -160,4 +160,4 @@ INSERT INTO categories (name, slug, icon, description) VALUES
 -- Insert sample sheet music (password: password123)
 INSERT INTO users (username, email, password_hash, full_name, role) VALUES
 ('admin', 'admin@sheetmusic.com', '$2y$10$YourHashedPasswordHere', 'Administrator', 'admin'),
-('demo_user', 'user@example.com', '$2y$10$YourHashedPasswordHere', 'Demo User', 'user');
+('demo_user', 'user@example.com', '$$2y$12$DwUlao8EEYCIwDbX44jbD.76VHCSmYtzvrvwiU3MTQWbXM4FpCKZW', 'Demo User', 'user');
