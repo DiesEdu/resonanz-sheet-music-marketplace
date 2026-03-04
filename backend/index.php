@@ -26,7 +26,18 @@ spl_autoload_register(function ($class) {
     }
 
     $relative_class = substr($class, $len);
-    $file = $base_dir . str_replace('\\', '/', $relative_class) . '.php';
+    $relative_path = str_replace('\\', '/', $relative_class) . '.php';
+
+    // Linux hosts are case-sensitive; normalize known top-level folders.
+    $normalized_path = preg_replace_callback(
+        '#^(Models|Controllers|Middleware|Config)/#',
+        function ($matches) {
+            return strtolower($matches[1]) . '/';
+        },
+        $relative_path
+    );
+
+    $file = $base_dir . $normalized_path;
 
     if (file_exists($file)) {
         require $file;

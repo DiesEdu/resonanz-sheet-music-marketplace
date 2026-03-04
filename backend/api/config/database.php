@@ -19,9 +19,8 @@ class Database
         $envPath = dirname(__DIR__, 2) . '/.env';
         $env = $this->loadEnv($envPath);
 
-        // Prefer DB_* keys to avoid conflict with app/server HOST values.
-        $rawDbHost = $env['DB_HOST'] ?? $env['db_host'] ?? null;
-        $rawHost = $rawDbHost ?? $env['host'] ?? $env['HOST'] ?? 'localhost';
+        // Use DB_* keys only for database config to avoid collision with app HOST values.
+        $rawHost = $env['DB_HOST'] ?? $env['db_host'] ?? 'localhost';
         $this->port = $env['DB_PORT'] ?? $env['db_port'] ?? '3306';
 
         // Support values like "localhost:8000" by splitting host/port safely.
@@ -30,7 +29,7 @@ class Database
             if (!empty($parts[0])) {
                 $rawHost = $parts[0];
             }
-            if ($rawDbHost !== null && ($env['DB_PORT'] ?? $env['db_port'] ?? '') === '' && !empty($parts[1])) {
+            if (($env['DB_PORT'] ?? $env['db_port'] ?? '') === '' && !empty($parts[1])) {
                 $this->port = $parts[1];
             }
         }
