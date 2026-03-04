@@ -181,7 +181,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import SheetCard from '../components/SheetCard.vue'
 import { useSheetMusicStore } from '../stores/sheetMusic'
 import { useCartStore } from '../stores/cart'
@@ -200,24 +200,14 @@ const filters = ref({
 })
 
 const sortBy = ref('title')
+let filterFetchTimeout
 
 const hasActiveFilters = computed(() => {
   return filters.value.instrument || filters.value.difficulty || filters.value.search
 })
 
 const filteredSheets = computed(() => {
-  let result = sheetStore.sheets.filter((sheet) => {
-    const matchesInstrument =
-      !filters.value.instrument || sheet.instrument === filters.value.instrument
-    const matchesDifficulty =
-      !filters.value.difficulty || sheet.difficulty === filters.value.difficulty
-    const matchesSearch =
-      !filters.value.search ||
-      sheet.title.toLowerCase().includes(filters.value.search.toLowerCase()) ||
-      sheet.composer.toLowerCase().includes(filters.value.search.toLowerCase())
-
-    return matchesInstrument && matchesDifficulty && matchesSearch
-  })
+  let result = [...sheetStore.sheets]
 
   // Sorting
   result.sort((a, b) => {
@@ -247,6 +237,38 @@ function clearAllFilters() {
     search: '',
   }
 }
+
+watch(
+  filters,
+  (nextFilters) => {
+    if (filterFetchTimeout) {
+      clearTimeout(filterFetchTimeout)
+    }
+
+    filterFetchTimeout = setTimeout(() => {
+      sheetStore.fetchSheetBySearch(
+        nextFilters.instrument,
+        nextFilters.difficulty,
+        nextFilters.search,
+      )
+    }, 300)
+  },
+  { deep: true },
+)
+
+onMounted(() => {
+  sheetStore.fetchSheetBySearch(
+    filters.value.instrument,
+    filters.value.difficulty,
+    filters.value.search,
+  )
+})
+
+onBeforeUnmount(() => {
+  if (filterFetchTimeout) {
+    clearTimeout(filterFetchTimeout)
+  }
+})
 </script>
 
 <style scoped>

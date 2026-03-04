@@ -15,6 +15,23 @@ export const useSheetMusicStore = defineStore('sheetMusic', () => {
     }
   }
 
+  async function fetchSheetBySearch(instrument, difficulty, search) {
+    try {
+      const queryParams = new URLSearchParams({
+        instrument: instrument || '',
+        difficulty: difficulty || '',
+        search: search || '',
+      })
+      console.log(queryParams)
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/sheets?${queryParams}`)
+      const result = await response.json()
+
+      sheets.value = result.data || []
+    } catch (error) {
+      console.error('Failed to fetch sheets:', error)
+    }
+  }
+
   function addSheet(payload) {
     const nextId =
       sheets.value.length > 0 ? Math.max(...sheets.value.map((sheet) => sheet.id || 0)) + 1 : 1
@@ -39,5 +56,5 @@ export const useSheetMusicStore = defineStore('sheetMusic', () => {
 
   fetchSheets()
 
-  return { sheets, fetchSheets, addSheet }
+  return { sheets, fetchSheets, fetchSheetBySearch, addSheet }
 })
