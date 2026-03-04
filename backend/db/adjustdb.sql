@@ -4,3 +4,4 @@ ALTER TABLE users MODIFY COLUMN role ENUM('user', 'composer', 'admin') DEFAULT '
 ALTER TABLE sheet_music ADD COLUMN created_by INT(11) NOT NULL AFTER views_count;
 
 UPDATE sheet_music SET created_by = 1;
+--------------------------------------------------------------

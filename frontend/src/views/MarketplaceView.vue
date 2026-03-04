@@ -79,7 +79,9 @@
     <!-- Results Counter -->
     <div class="d-flex justify-content-between align-items-center my-4">
       <p class="text-muted mb-0 animate-fade-up delay-3">
-        Showing <strong>{{ filteredSheets.length }}</strong> results
+        Showing
+        <strong>{{ paginationStart }}-{{ paginationEnd }}</strong>
+        of <strong>{{ filteredSheets.length }}</strong> results
       </p>
       <div class="view-options">
         <button
@@ -105,7 +107,7 @@
         <!-- Grid View -->
         <div v-if="viewMode === 'grid'" class="row g-4">
           <div
-            v-for="(sheet, index) in filteredSheets"
+            v-for="(sheet, index) in paginatedSheets"
             :key="sheet.id"
             class="col-md-4"
             :class="`animate-fade-scale delay-${(index % 4) + 1}`"
@@ -117,7 +119,7 @@
         <!-- List View -->
         <div v-else class="list-view">
           <div
-            v-for="(sheet, index) in filteredSheets"
+            v-for="(sheet, index) in paginatedSheets"
             :key="sheet.id"
             class="list-item animate-slide-left"
             :class="`delay-${(index % 4) + 1}`"
@@ -167,6 +169,36 @@
             </div>
           </div>
         </div>
+
+        <!-- Pagination -->
+        <div class="pagination-wrapper d-flex justify-content-center mt-4">
+          <nav aria-label="Marketplace pagination">
+            <ul class="pagination mb-0">
+              <li class="page-item" :class="{ disabled: currentPage === 1 }">
+                <button class="page-link" @click="goToPrevPage" :disabled="currentPage === 1">
+                  Previous
+                </button>
+              </li>
+              <li
+                v-for="page in totalPages"
+                :key="page"
+                class="page-item"
+                :class="{ active: page === currentPage }"
+              >
+                <button class="page-link" @click="goToPage(page)">{{ page }}</button>
+              </li>
+              <li class="page-item" :class="{ disabled: currentPage === totalPages }">
+                <button
+                  class="page-link"
+                  @click="goToNextPage"
+                  :disabled="currentPage === totalPages"
+                >
+                  Next
+                </button>
+              </li>
+            </ul>
+          </nav>
+        </div>
       </div>
 
       <!-- Empty State -->
@@ -204,6 +236,8 @@ const filters = ref({
 })
 
 const sortBy = ref('title')
+const currentPage = ref(1)
+const itemsPerPage = 9
 let filterFetchTimeout
 
 const hasActiveFilters = computed(() => {
@@ -229,6 +263,43 @@ const filteredSheets = computed(() => {
   return result
 })
 
+const totalPages = computed(() => {
+  return Math.max(1, Math.ceil(filteredSheets.value.length / itemsPerPage))
+})
+
+const paginatedSheets = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return filteredSheets.value.slice(start, end)
+})
+
+const paginationStart = computed(() => {
+  if (filteredSheets.value.length === 0) return 0
+  return (currentPage.value - 1) * itemsPerPage + 1
+})
+
+const paginationEnd = computed(() => {
+  if (filteredSheets.value.length === 0) return 0
+  return Math.min(currentPage.value * itemsPerPage, filteredSheets.value.length)
+})
+
+function goToPage(page) {
+  if (page < 1 || page > totalPages.value) return
+  currentPage.value = page
+}
+
+function goToPrevPage() {
+  if (currentPage.value > 1) {
+    currentPage.value -= 1
+  }
+}
+
+function goToNextPage() {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value += 1
+  }
+}
+
 function addToCart(sheet) {
   cartStore.addToCart(sheet)
   // Show toast notification
@@ -245,6 +316,8 @@ function clearAllFilters() {
 watch(
   filters,
   (nextFilters) => {
+    currentPage.value = 1
+
     if (filterFetchTimeout) {
       clearTimeout(filterFetchTimeout)
     }
@@ -259,6 +332,16 @@ watch(
   },
   { deep: true },
 )
+
+watch(sortBy, () => {
+  currentPage.value = 1
+})
+
+watch(totalPages, (nextTotalPages) => {
+  if (currentPage.value > nextTotalPages) {
+    currentPage.value = nextTotalPages
+  }
+})
 
 onMounted(() => {
   sheetStore.fetchSheetBySearch(
@@ -382,5 +465,15 @@ onBeforeUnmount(() => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+.pagination-wrapper .pagination .page-link {
+  color: #8f7648;
+}
+
+.pagination-wrapper .pagination .page-item.active .page-link {
+  background-color: #c5a572;
+  border-color: #c5a572;
+  color: white;
 }
 </style>
