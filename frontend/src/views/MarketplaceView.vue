@@ -125,7 +125,11 @@
             <div class="card mb-3">
               <div class="row g-0">
                 <div class="col-md-3">
-                  <img :src="sheet.coverImage" class="img-fluid rounded-start" :alt="sheet.title" />
+                  <img
+                    :src="sheet.cover_image"
+                    class="img-fluid rounded-start"
+                    :alt="sheet.title"
+                  />
                 </div>
                 <div class="col-md-9">
                   <div class="card-body">
@@ -135,7 +139,7 @@
                         <p class="card-text text-muted">{{ sheet.composer }}</p>
                       </div>
                       <div class="text-end">
-                        <h4 class="text-gold">${{ sheet.price.toFixed(2) }}</h4>
+                        <h4 class="text-gold">${{ Number(sheet.price).toFixed(2) }}</h4>
                         <button class="btn btn-primary btn-sm" @click="addToCart(sheet)">
                           <i class="bi bi-cart-plus"></i> Add to Cart
                         </button>
