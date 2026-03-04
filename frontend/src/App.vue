@@ -8,7 +8,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top animate-slide-down">
       <div class="container">
         <router-link class="navbar-brand" to="/">
-          <i class="bi bi-music-note-beamed"></i> SheetMusic Market
+          <i class="bi bi-music-note-beamed"></i> Resonanz Marketplace
         </router-link>
         <button
           class="navbar-toggler"
@@ -31,6 +31,20 @@
                   cartStore.cartTotal
                 }}</span>
               </router-link>
+            </li>
+            <li v-if="isLoggedIn" class="nav-item d-flex align-items-center">
+              <span class="nav-link auth-user-name">
+                <i class="bi bi-person-circle me-1"></i>{{ displayName }}
+              </span>
+            </li>
+            <li v-if="isLoggedIn" class="nav-item d-flex align-items-center">
+              <button
+                class="nav-link btn btn-link text-decoration-none"
+                type="button"
+                @click="logout"
+              >
+                <i class="bi bi-box-arrow-right"></i> Logout
+              </button>
             </li>
           </ul>
         </div>
@@ -69,6 +83,14 @@
               <li>
                 <router-link to="/cart" class="text-muted text-decoration-none">Cart</router-link>
               </li>
+              <li>
+                <router-link to="/login" class="text-muted text-decoration-none">Login</router-link>
+              </li>
+              <li>
+                <router-link to="/register" class="text-muted text-decoration-none"
+                  >Register</router-link
+                >
+              </li>
             </ul>
           </div>
           <div class="col-md-4 animate-fade-up delay-3">
@@ -94,15 +116,61 @@
 </template>
 
 <script setup>
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useCartStore } from './stores/cart'
 
 const cartStore = useCartStore()
+const router = useRouter()
+const authUser = ref(null)
 
-const navItems = [
+function syncAuthUser() {
+  const rawUser = localStorage.getItem('auth_user')
+  if (!rawUser) {
+    authUser.value = null
+    return
+  }
+
+  try {
+    authUser.value = JSON.parse(rawUser)
+  } catch {
+    authUser.value = null
+  }
+}
+
+function handleAuthChanged() {
+  syncAuthUser()
+}
+
+function logout() {
+  localStorage.removeItem('auth_token')
+  localStorage.removeItem('auth_user')
+  syncAuthUser()
+  router.push('/')
+}
+
+onMounted(() => {
+  syncAuthUser()
+  window.addEventListener('auth-changed', handleAuthChanged)
+  window.addEventListener('storage', handleAuthChanged)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('auth-changed', handleAuthChanged)
+  window.removeEventListener('storage', handleAuthChanged)
+})
+
+const isLoggedIn = computed(() => !!authUser.value)
+const displayName = computed(() => authUser.value?.full_name || authUser.value?.username || 'User')
+
+const navItems = computed(() => [
   { name: 'Home', path: '/', icon: 'bi bi-house-door' },
   { name: 'Marketplace', path: '/marketplace', icon: 'bi bi-shop' },
   { name: 'Cart', path: '/cart', icon: 'bi bi-cart' },
-]
+  ...(isLoggedIn.value
+    ? []
+    : [{ name: 'Login', path: '/login', icon: 'bi bi-box-arrow-in-right' }]),
+])
 </script>
 
 <style>
@@ -155,5 +223,10 @@ const navItems = [
 .page-leave-to {
   opacity: 0;
   transform: translateY(-30px);
+}
+
+.auth-user-name {
+  color: #e9d4b0;
+  cursor: default;
 }
 </style>

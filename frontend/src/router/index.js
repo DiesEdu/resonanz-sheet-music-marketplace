@@ -24,6 +24,16 @@ const router = createRouter({
       name: 'sheet-detail',
       component: () => import('../views/SheetDetailView.vue'),
     },
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('../views/LoginView.vue'),
+    },
+    {
+      path: '/register',
+      name: 'register',
+      component: () => import('../views/RegisterView.vue'),
+    },
   ],
 })
 
