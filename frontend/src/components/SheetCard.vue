@@ -83,6 +83,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useCartStore } from '../stores/cart'
 
 const props = defineProps({
@@ -93,11 +94,19 @@ const props = defineProps({
 })
 
 const cartStore = useCartStore()
+const router = useRouter()
 const isFavorite = ref(false)
 const showAddedAnimation = ref(false)
 
 function addToCart(event) {
   event.preventDefault()
+
+  const authUser = localStorage.getItem('auth_user')
+  if (!authUser) {
+    router.push('/login')
+    return
+  }
+
   cartStore.addToCart(props.sheet)
 
   // Show animation
