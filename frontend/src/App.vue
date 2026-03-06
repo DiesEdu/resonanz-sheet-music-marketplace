@@ -34,9 +34,9 @@
               </router-link>
             </li>
             <li v-if="isLoggedIn" class="nav-item d-flex align-items-center">
-              <span class="nav-link auth-user-name">
+              <router-link class="nav-link auth-user-name" to="/profile" @click="handleNavItemClick">
                 <i class="bi bi-person-circle me-1"></i>{{ displayName }}
-              </span>
+              </router-link>
             </li>
             <li v-if="isLoggedIn" class="nav-item d-flex align-items-center">
               <button
@@ -334,6 +334,10 @@ const socialMediaItems = computed(() => {
 
 .auth-user-name {
   color: #e9d4b0;
-  cursor: default;
+  cursor: pointer;
+}
+
+.auth-user-name:hover {
+  color: #f5e6cd;
 }
 </style>

@@ -3,6 +3,7 @@
 namespace SheetMusic\Models;
 
 use PDO;
+use PDOException;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
@@ -106,7 +107,7 @@ class User
 
     public function getById($id)
     {
-        $query = "SELECT id, username, email, full_name, avatar, role, created_at 
+        $query = "SELECT id, username, email, full_name, avatar, role, email_verified, created_at 
                   FROM " . $this->table . " WHERE id = :id LIMIT 0,1";
 
         $stmt = $this->conn->prepare($query);
@@ -118,16 +119,89 @@ class User
 
     public function updateProfile($id, $data)
     {
+        $allowedFields = ['username', 'full_name', 'email'];
+        $setParts = [];
+        $params = [':id' => $id];
+
+        foreach ($allowedFields as $field) {
+            if (!array_key_exists($field, $data)) {
+                continue;
+            }
+
+            $value = is_string($data[$field]) ? trim($data[$field]) : $data[$field];
+            $setParts[] = "{$field} = :{$field}";
+            $params[":{$field}"] = $value;
+        }
+
+        if (count($setParts) === 0) {
+            return ['ok' => false, 'error' => 'No profile fields provided'];
+        }
+
         $query = "UPDATE " . $this->table . "
-                  SET full_name = :full_name,
-                      email = :email
+                  SET " . implode(', ', $setParts) . "
+                  WHERE id = :id";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute($params);
+            return ['ok' => true];
+        } catch (PDOException $e) {
+            if ($e->getCode() === '23000') {
+                return ['ok' => false, 'error' => 'Username or email already exists'];
+            }
+            return ['ok' => false, 'error' => 'Unable to update profile'];
+        }
+    }
+
+    public function changePassword($id, $currentPassword, $newPassword)
+    {
+        $query = "SELECT password_hash FROM " . $this->table . " WHERE id = :id LIMIT 0,1";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+
+        if ($stmt->rowCount() === 0) {
+            return ['ok' => false, 'error' => 'User not found', 'status' => 404];
+        }
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!password_verify($currentPassword, $row['password_hash'])) {
+            return ['ok' => false, 'error' => 'Current password is incorrect', 'status' => 400];
+        }
+
+        $newHash = password_hash($newPassword, PASSWORD_BCRYPT);
+        $updateQuery = "UPDATE " . $this->table . " SET password_hash = :password_hash WHERE id = :id";
+        $updateStmt = $this->conn->prepare($updateQuery);
+        $updateStmt->bindParam(':password_hash', $newHash);
+        $updateStmt->bindParam(':id', $id, PDO::PARAM_INT);
+        $updateStmt->execute();
+
+        return ['ok' => true];
+    }
+
+    public function getVerificationDataById($id)
+    {
+        $query = "SELECT id, username, email, email_verified, verification_token
+                  FROM " . $this->table . "
+                  WHERE id = :id
+                  LIMIT 0,1";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function setVerificationToken($id, $token)
+    {
+        $query = "UPDATE " . $this->table . "
+                  SET verification_token = :token
                   WHERE id = :id";
 
         $stmt = $this->conn->prepare($query);
-
-        $stmt->bindParam(':full_name', $data['full_name']);
-        $stmt->bindParam(':email', $data['email']);
-        $stmt->bindParam(':id', $id);
+        $stmt->bindParam(':token', $token);
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
 
         return $stmt->execute();
     }

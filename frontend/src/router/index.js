@@ -40,6 +40,12 @@ const router = createRouter({
       component: () => import('../views/VerifiedView.vue'),
     },
     {
+      path: '/profile',
+      name: 'profile',
+      component: () => import('../views/ProfileView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/composer/hub',
       name: 'composer-hub',
       component: () => import('../views/ComposerDashboard.vue'),
@@ -64,6 +70,20 @@ function getAuthUser() {
     return null
   }
 }
+
+router.beforeEach((to) => {
+  if (!to.meta.requiresAuth) {
+    return true
+  }
+
+  const authUser = getAuthUser()
+  const authToken = localStorage.getItem('auth_token')
+  if (authUser && authToken) {
+    return true
+  }
+
+  return { name: 'login' }
+})
 
 router.beforeEach((to) => {
   if (!to.meta.requiresAdmin) {
