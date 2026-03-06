@@ -66,37 +66,28 @@
         <div class="row">
           <div class="col-md-4 animate-fade-up">
             <h5 class="text-gold">SheetMusic Market</h5>
-            <p class="text-muted">
+            <p class="text-white">
               Your premier destination for classical and contemporary sheet music.
             </p>
           </div>
           <div class="col-md-4 animate-fade-up delay-2">
-            <h5 class="text-gold">Quick Links</h5>
+            <h5 class="text-gold">Our Social Media</h5>
             <ul class="list-unstyled">
-              <li>
-                <router-link to="/" class="text-muted text-decoration-none">Home</router-link>
-              </li>
-              <li>
-                <router-link to="/marketplace" class="text-muted text-decoration-none"
-                  >Marketplace</router-link
+              <li v-for="item in socialMediaItems" :key="item.name">
+                <a
+                  :href="item.url"
+                  class="text-white text-decoration-none"
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
-              </li>
-              <li>
-                <router-link to="/cart" class="text-muted text-decoration-none">Cart</router-link>
-              </li>
-              <li>
-                <router-link to="/login" class="text-muted text-decoration-none">Login</router-link>
-              </li>
-              <li>
-                <router-link to="/register" class="text-muted text-decoration-none"
-                  >Register</router-link
-                >
+                  <i :class="item.icon" class="me-2"></i>{{ item.name }}
+                </a>
               </li>
             </ul>
           </div>
           <div class="col-md-4 animate-fade-up delay-3">
             <h5 class="text-gold">Newsletter</h5>
-            <p class="text-muted">Subscribe for exclusive releases and offers</p>
+            <p class="text-white">Subscribe for exclusive releases and offers</p>
             <div class="input-group">
               <input
                 type="email"
@@ -108,8 +99,8 @@
           </div>
         </div>
         <hr class="border-secondary" />
-        <div class="text-center text-muted animate-fade-up delay-4">
-          <small>&copy; 2024 SheetMusic Market. All rights reserved.</small>
+        <div class="text-center animate-fade-up delay-4">
+          <small>&copy; 2026 The Resonanz Music Studio. All rights reserved.</small>
         </div>
       </div>
     </footer>
@@ -250,10 +241,35 @@ const navItems = computed(() => [
     ? []
     : [{ name: 'Login', path: '/login', icon: 'bi bi-box-arrow-in-right' }]),
 ])
+
+const socialMediaItems = computed(() => {
+  return [
+    {
+      name: '@theresonanz',
+      url: 'https://www.instagram.com/theresonanz/',
+      icon: 'bi bi-instagram',
+    },
+    { name: '@theresonanz', url: 'https://x.com/theresonanz', icon: 'bi bi-twitter-x' },
+    {
+      name: '@theresonanzmusicstudio',
+      url: 'https://www.facebook.com/TheResonanzMusicStudio/',
+      icon: 'bi bi-facebook',
+    },
+    {
+      name: '@theresonanz',
+      url: 'https://www.youtube.com/channel/UCdb2I2qatGylIK_9oZpRQqg',
+      icon: 'bi bi-youtube',
+    },
+  ]
+})
 </script>
 
 <style>
 @import 'bootstrap-icons/font/bootstrap-icons.css';
+
+.text-white {
+  color: #f8f9fa;
+}
 
 .text-gold {
   color: #c5a572;

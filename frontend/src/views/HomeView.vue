@@ -57,7 +57,11 @@
                   :style="{ width: instrument.popularity + '%' }"
                 ></div>
               </div>
-              <router-link to="/marketplace" class="btn btn-outline-gold stretched-link">
+              <router-link
+                to="/marketplace"
+                class="btn btn-outline-gold stretched-link"
+                @click="handleInstrumentItemClick"
+              >
                 Explore <i class="bi bi-arrow-right"></i>
               </router-link>
             </div>
@@ -167,6 +171,10 @@ const testimonials = ref([
     avatar: 'https://randomuser.me/api/portraits/men/46.jpg',
   },
 ])
+
+function handleInstrumentItemClick() {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
 
 function playDemo() {
   // Demo video modal would go here

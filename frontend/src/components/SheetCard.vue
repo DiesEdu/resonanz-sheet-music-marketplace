@@ -3,7 +3,7 @@
     <div class="position-relative">
       <router-link :to="'/sheet/' + sheet.id" class="text-decoration-none">
         <div class="image-wrapper">
-          <img :src="sheet.cover_image" class="card-img-top" :alt="sheet.title" />
+          <img :src="sheet.cover_image" class="card-img-top sheet-cover-img" :alt="sheet.title" />
           <div class="image-overlay">
             <div class="overlay-content">
               <i class="bi bi-eye"></i>
@@ -151,6 +151,12 @@ function toggleFavorite(event) {
 
 .image-wrapper img {
   transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sheet-cover-img {
+  width: 100%;
+  height: 230px;
+  object-fit: cover;
 }
 
 .sheet-card:hover .image-wrapper img {
