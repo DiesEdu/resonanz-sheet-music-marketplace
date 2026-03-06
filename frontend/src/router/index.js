@@ -35,9 +35,9 @@ const router = createRouter({
       component: () => import('../views/RegisterView.vue'),
     },
     {
-      path: '/composer/add-sheet',
-      name: 'add-sheet',
-      component: () => import('../views/AddSheetMusicView.vue'),
+      path: '/composer/hub',
+      name: 'composer-hub',
+      component: () => import('../views/ComposerDashboard.vue'),
       meta: { requiresComposer: true },
     },
     {

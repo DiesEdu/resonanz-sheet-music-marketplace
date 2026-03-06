@@ -1,7 +1,7 @@
 <template>
   <section class="container py-5 add-sheet-page">
     <div class="text-center mb-4">
-      <h1 class="section-title animate-fade-up">Add New Sheet Music</h1>
+      <h1 class="section-title animate-fade-up mb-4">Composer Hub</h1>
       <p class="text-muted animate-fade-up delay-1">
         {{
           isEditMode

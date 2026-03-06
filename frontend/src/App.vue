@@ -228,11 +228,11 @@ const navItems = computed(() => [
   { name: 'Home', path: '/', icon: 'bi bi-house-door' },
   { name: 'Marketplace', path: '/marketplace', icon: 'bi bi-shop' },
   ...(isComposer.value
-    ? [{ name: 'Add Sheet', path: '/composer/add-sheet', icon: 'bi bi-file-earmark-plus' }]
+    ? [{ name: 'Composer Hub', path: '/composer/hub', icon: 'bi bi-file-earmark-plus' }]
     : []),
   ...(isAdmin.value
     ? [
-        { name: 'Add Sheet', path: '/composer/add-sheet', icon: 'bi bi-file-earmark-plus' },
+        { name: 'Composer Hub', path: '/composer/hub', icon: 'bi bi-file-earmark-plus' },
         { name: 'Users', path: '/admin/users', icon: 'bi bi-people' },
       ]
     : []),
