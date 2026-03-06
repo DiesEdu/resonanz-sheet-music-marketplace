@@ -18,9 +18,10 @@ if (in_array($request_origin, $allowed_origins, true)) {
 }
 
 header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, HEAD");
 header("Access-Control-Max-Age: 3600");
-header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
+header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With, Range");
+header("Access-Control-Expose-Headers: Content-Length, Content-Range, Accept-Ranges, Content-Type, Content-Disposition");
 
 // Handle preflight requests
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -120,15 +121,22 @@ try {
 
         case 'uploads':
             // Serve uploaded files
-            $file_path = __DIR__ . '/api/uploads/' . implode('/', array_slice($segments, 1));
-            if (file_exists($file_path)) {
-                $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                $mime_type = finfo_file($finfo, $file_path);
-                finfo_close($finfo);
+            $relativePath = implode('/', array_slice($segments, 1));
+            $uploadsRoot = realpath(__DIR__ . '/api/uploads');
+            $filePath = realpath(__DIR__ . '/api/uploads/' . $relativePath);
+
+            if ($uploadsRoot && $filePath && str_starts_with($filePath, $uploadsRoot) && file_exists($filePath)) {
+                $finfo = new finfo(FILEINFO_MIME_TYPE);
+                $mime_type = $finfo->file($filePath) ?: 'application/octet-stream';
 
                 header("Content-Type: " . $mime_type);
-                header("Content-Length: " . filesize($file_path));
-                readfile($file_path);
+                header("Content-Length: " . filesize($filePath));
+                header("Content-Disposition: inline; filename=\"" . basename($filePath) . "\"");
+                header("Accept-Ranges: bytes");
+                if ($_SERVER['REQUEST_METHOD'] === 'HEAD') {
+                    exit();
+                }
+                readfile($filePath);
                 exit();
             } else {
                 http_response_code(404);
