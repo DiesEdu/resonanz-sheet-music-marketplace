@@ -1,7 +1,11 @@
 <template>
   <div class="card h-100 sheet-card">
     <div class="position-relative">
-      <router-link :to="'/sheet/' + sheet.id" class="text-decoration-none">
+      <router-link
+        :to="'/sheet/' + sheet.id"
+        class="text-decoration-none"
+        @click="handleSheetClick"
+      >
         <div class="image-wrapper">
           <img :src="sheet.cover_image" class="card-img-top sheet-cover-img" :alt="sheet.title" />
           <div class="image-overlay">
@@ -98,6 +102,12 @@ const cartStore = useCartStore()
 const router = useRouter()
 const isFavorite = ref(false)
 const showAddedAnimation = ref(false)
+
+function handleSheetClick() {
+  requestAnimationFrame(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  })
+}
 
 function addToCart(event) {
   event.preventDefault()

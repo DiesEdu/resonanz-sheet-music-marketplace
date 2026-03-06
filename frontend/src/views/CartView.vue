@@ -15,7 +15,11 @@
           <div v-for="item in cartStore.cartItems" :key="item.id" class="card mb-3">
             <div class="row g-0">
               <div class="col-md-4">
-                <img :src="item.coverImage" :alt="item.title" class="img-fluid rounded-start" />
+                <img
+                  :src="item.coverImage"
+                  :alt="item.title"
+                  class="img-fluid rounded-start sheet-cover-img"
+                />
               </div>
               <div class="col-md-8">
                 <div class="card-body">
@@ -106,3 +110,11 @@ function checkout() {
   alert('Checkout functionality would be implemented here!')
 }
 </script>
+
+<style scoped>
+.sheet-cover-img {
+  width: 100%;
+  height: 230px;
+  object-fit: cover;
+}
+</style>

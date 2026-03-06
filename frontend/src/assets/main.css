@@ -1,12 +1,18 @@
 /* Modern CSS Reset and Base Styles */
+@font-face {
+  font-family: 'Faculty Glyphic';
+  src: url('./fonts/FacultyGlyphic-Regular.ttf') format('truetype');
+}
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  font-size: small;
 }
 
 body {
-  font-family: 'Cormorant Garamond', 'Segoe UI', serif;
+  font-family: 'Faculty Glyphic', 'Segoe UI', serif;
   background: linear-gradient(135deg, #fdfcfb 0%, #e9e4e0 100%);
   color: #2c1810;
   overflow-x: hidden;
