@@ -73,3 +73,37 @@ export async function updateUserRole(userId, role) {
 
   return payload
 }
+
+export async function getMyOrders() {
+  const response = await fetch(`${API_BASE_URL}/orders`, {
+    method: 'GET',
+    headers: {
+      ...getAuthHeaders(),
+    },
+  })
+
+  const payload = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    throw new Error(payload?.error || 'Failed to fetch order history')
+  }
+
+  return Array.isArray(payload) ? payload : []
+}
+
+export async function getOrderById(orderId) {
+  const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
+    method: 'GET',
+    headers: {
+      ...getAuthHeaders(),
+    },
+  })
+
+  const payload = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    throw new Error(payload?.error || 'Failed to fetch order detail')
+  }
+
+  return payload
+}

@@ -46,6 +46,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/my-orders',
+      name: 'my-orders',
+      component: () => import('../views/MyOrdersView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/composer/hub',
       name: 'composer-hub',
       component: () => import('../views/ComposerDashboard.vue'),

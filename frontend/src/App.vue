@@ -239,6 +239,7 @@ const displayName = computed(() => {
 const navItems = computed(() => [
   { name: 'Home', path: '/', icon: 'bi bi-house-door' },
   { name: 'Marketplace', path: '/marketplace', icon: 'bi bi-shop' },
+  ...(isLoggedIn.value ? [{ name: 'My Orders', path: '/my-orders', icon: 'bi bi-receipt' }] : []),
   ...(isComposer.value
     ? [{ name: 'Composer Hub', path: '/composer/hub', icon: 'bi bi-file-earmark-plus' }]
     : []),
