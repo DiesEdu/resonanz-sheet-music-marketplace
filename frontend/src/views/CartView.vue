@@ -131,6 +131,50 @@ function getAuthHeaders() {
   return headers
 }
 
+async function ensureEmailVerifiedForCheckout(token) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    const payload = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        localStorage.removeItem('auth_token')
+        localStorage.removeItem('auth_user')
+        window.dispatchEvent(new Event('auth-changed'))
+        router.push('/login')
+      }
+      return {
+        ok: false,
+        error: payload?.error || 'Unable to verify account status. Please login again.',
+      }
+    }
+
+    localStorage.setItem('auth_user', JSON.stringify(payload))
+    window.dispatchEvent(new Event('auth-changed'))
+
+    if (Number(payload?.email_verified) !== 1) {
+      return {
+        ok: false,
+        error: 'Your email is not verified. Please verify it from Profile before checkout.',
+        redirectToProfile: true,
+      }
+    }
+
+    return { ok: true }
+  } catch {
+    return {
+      ok: false,
+      error: 'Network error while checking verification status.',
+    }
+  }
+}
+
 async function checkout() {
   if (isCheckingOut.value) return
 
@@ -141,6 +185,16 @@ async function checkout() {
   if (!token) {
     checkoutError.value = 'Please login first to complete checkout.'
     router.push('/login')
+    return
+  }
+
+  const verificationStatus = await ensureEmailVerifiedForCheckout(token)
+  if (!verificationStatus.ok) {
+    checkoutError.value = verificationStatus.error
+    if (verificationStatus.redirectToProfile) {
+      await new Promise((resolve) => setTimeout(resolve, 5000))
+      router.push('/profile')
+    }
     return
   }
 
