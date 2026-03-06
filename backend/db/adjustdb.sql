@@ -8,3 +8,7 @@ UPDATE sheet_music SET created_by = 1;
 ALTER TABLE sheet_music ADD COLUMN subtitle VARCHAR(255) NULL AFTER title;
 ALTER TABLE sheet_music ADD COLUMN list_instruments JSON NULL AFTER instrument_id;
 ALTER TABLE sheet_music ADD COLUMN pdf_name VARCHAR(255) NULL AFTER format;
+---------------------------------------------------------------
+ALTER TABLE users
+ADD email_verified TINYINT(1) DEFAULT 0,
+ADD verification_token VARCHAR(255) NULL;

@@ -35,7 +35,9 @@ class AuthController
                 break;
 
             case 'GET':
-                if ($action === 'profile') {
+                if ($action === 'verify') {
+                    $this->verifyEmail();
+                } elseif ($action === 'profile') {
                     $this->getProfile();
                 } elseif ($action === 'wishlist') {
                     $this->getWishlist();
@@ -57,6 +59,38 @@ class AuthController
             default:
                 http_response_code(405);
                 echo json_encode(['error' => 'Method not allowed']);
+        }
+    }
+
+    private function verifyEmail()
+    {
+        $token = $_GET['token'] ?? null;
+
+        if (!$token) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Verification token required']);
+            return;
+        }
+
+        $query = "UPDATE users 
+              SET email_verified = 1, verification_token = NULL
+              WHERE verification_token = :token";
+
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':token', $token);
+        $stmt->execute();
+
+        if ($stmt->rowCount() > 0) {
+
+            // redirect to Vue success page
+            header("Location: https://scores.resonanz.id/verified");
+            exit();
+
+        } else {
+
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid or expired verification link']);
+
         }
     }
 
@@ -105,12 +139,33 @@ class AuthController
             $this->user->password = $data->password;
             $this->user->full_name = $data->full_name ?? '';
 
+            $verification_token = bin2hex(random_bytes(32));
+            $this->user->verification_token = $verification_token;
+
             if ($this->user->create()) {
+
+                $base_url = $_ENV['APP_URL'] ?? 'https://scores.resonanz.id';
+                $verify_link = $base_url . "/api/auth/verify?token=" . $verification_token;
+
+                $subject = "Verify your email";
+
+                $message = "
+    Hello {$this->user->username},
+
+    Please verify your email by clicking the link below:
+
+    $verify_link
+    ";
+
+                $headers = "From: admin@scores.resonanz.id";
+
+                mail($this->user->email, $subject, $message, $headers);
+
                 $token = $this->user->generateJWT();
 
                 http_response_code(201);
                 echo json_encode([
-                    'message' => 'User created successfully',
+                    'message' => 'User created successfully. Please verify your email.',
                     'token' => $token,
                     'user' => [
                         'id' => $this->user->id,

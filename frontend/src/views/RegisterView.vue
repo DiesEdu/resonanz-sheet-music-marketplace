@@ -65,9 +65,13 @@
             {{ successMessage }}
           </div>
 
-          <button type="submit" class="btn btn-primary w-100 mt-2" :disabled="isSubmitting">
+          <button
+            type="submit"
+            class="btn btn-primary w-100 mt-2"
+            :disabled="isSubmitting || isRegistered"
+          >
             <span v-if="isSubmitting" class="spinner-border spinner-border-sm me-2" role="status"></span>
-            {{ isSubmitting ? 'Creating account...' : 'Register' }}
+            {{ isSubmitting ? 'Creating account...' : isRegistered ? 'Registration complete' : 'Register' }}
           </button>
         </form>
 
@@ -97,6 +101,7 @@ const form = reactive({
 const isSubmitting = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
+const isRegistered = ref(false)
 
 async function handleRegister() {
   errorMessage.value = ''
@@ -133,11 +138,18 @@ async function handleRegister() {
       return
     }
 
-    localStorage.setItem('auth_token', payload.token)
-    localStorage.setItem('auth_user', JSON.stringify(payload.user))
+    localStorage.removeItem('auth_token')
+    localStorage.removeItem('auth_user')
     window.dispatchEvent(new Event('auth-changed'))
-    successMessage.value = 'Account created successfully.'
-    router.push('/')
+    successMessage.value =
+      payload.message ||
+      `Account created. We sent a verification link to ${form.email}. Please verify your email before login.`
+    isRegistered.value = true
+
+    const emailQuery = encodeURIComponent(form.email)
+    setTimeout(() => {
+      router.push(`/login?verified_email=${emailQuery}`)
+    }, 1800)
   } catch {
     errorMessage.value = 'Network error. Please try again.'
   } finally {

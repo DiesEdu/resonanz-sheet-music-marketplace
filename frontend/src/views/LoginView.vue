@@ -9,6 +9,10 @@
         </div>
 
         <form @submit.prevent="handleLogin" novalidate>
+          <div v-if="verificationNotice" class="alert alert-info py-2" role="alert">
+            {{ verificationNotice }}
+          </div>
+
           <div class="mb-3">
             <label for="username" class="form-label">Username or Email</label>
             <input
@@ -61,9 +65,11 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
+const route = useRoute()
 
 const form = reactive({
   username: '',
@@ -73,6 +79,14 @@ const form = reactive({
 const isSubmitting = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
+const verificationNotice = ref('')
+
+onMounted(() => {
+  const verifiedEmail = route.query.verified_email
+  if (typeof verifiedEmail === 'string' && verifiedEmail.trim()) {
+    verificationNotice.value = `Registration successful. We sent a verification link to ${verifiedEmail}. Please verify your email before login.`
+  }
+})
 
 async function handleLogin() {
   errorMessage.value = ''

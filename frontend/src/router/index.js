@@ -35,6 +35,11 @@ const router = createRouter({
       component: () => import('../views/RegisterView.vue'),
     },
     {
+      path: '/verified',
+      name: 'verified',
+      component: () => import('../views/VerifiedView.vue'),
+    },
+    {
       path: '/composer/hub',
       name: 'composer-hub',
       component: () => import('../views/ComposerDashboard.vue'),

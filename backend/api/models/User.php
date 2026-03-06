@@ -16,6 +16,7 @@ class User
     public $email;
     public $password;
     public $full_name;
+    public $verification_token;
     public $avatar;
     public $role;
     public $created_at;
@@ -31,7 +32,8 @@ class User
                   SET username = :username,
                       email = :email,
                       password_hash = :password_hash,
-                      full_name = :full_name";
+                      full_name = :full_name,
+                      verification_token = :verification_token";
 
         $stmt = $this->conn->prepare($query);
 
@@ -39,6 +41,7 @@ class User
         $this->username = htmlspecialchars(strip_tags($this->username));
         $this->email = htmlspecialchars(strip_tags($this->email));
         $this->full_name = htmlspecialchars(strip_tags($this->full_name));
+        $this->verification_token = htmlspecialchars(strip_tags($this->verification_token));
         $this->password = password_hash($this->password, PASSWORD_BCRYPT);
 
         // Bind data
@@ -46,6 +49,7 @@ class User
         $stmt->bindParam(':email', $this->email);
         $stmt->bindParam(':password_hash', $this->password);
         $stmt->bindParam(':full_name', $this->full_name);
+        $stmt->bindParam(':verification_token', $this->verification_token);
 
         if ($stmt->execute()) {
             $this->id = $this->conn->lastInsertId();
