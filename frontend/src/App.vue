@@ -25,6 +25,7 @@
                 class="nav-link"
                 :to="item.path"
                 :class="{ 'animate-fade-scale': true, [`delay-${index + 1}`]: true }"
+                @click="handleNavItemClick"
               >
                 <i :class="item.icon"></i> {{ item.name }}
                 <span v-if="item.name === 'Cart'" class="badge bg-primary ms-2">{{
@@ -120,6 +121,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from './stores/cart'
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
 const cartStore = useCartStore()
 const router = useRouter()
 const authUser = ref(null)
@@ -138,19 +140,85 @@ function syncAuthUser() {
   }
 }
 
-function handleAuthChanged() {
+function closeMobileNavbar() {
+  const navbarCollapse = document.getElementById('navbarNav')
+  if (!navbarCollapse?.classList.contains('show')) {
+    return
+  }
+
+  const collapseApi = window.bootstrap?.Collapse
+  if (collapseApi) {
+    collapseApi.getOrCreateInstance(navbarCollapse).hide()
+    return
+  }
+
+  navbarCollapse.classList.remove('show')
+  const toggler = document.querySelector('.navbar-toggler')
+  toggler?.setAttribute('aria-expanded', 'false')
+}
+
+function handleNavItemClick() {
+  closeMobileNavbar()
+  requestAnimationFrame(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  })
+}
+
+function clearAuthAndRequireLogin() {
+  localStorage.removeItem('auth_token')
+  localStorage.removeItem('auth_user')
   syncAuthUser()
+
+  if (router.currentRoute.value.path !== '/login') {
+    router.push('/login')
+  }
+}
+
+async function validateAuthToken() {
+  const token = localStorage.getItem('auth_token')
+  if (!token) {
+    syncAuthUser()
+    return
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        clearAuthAndRequireLogin()
+      }
+      return
+    }
+
+    const profile = await response.json()
+    if (profile && typeof profile === 'object') {
+      localStorage.setItem('auth_user', JSON.stringify(profile))
+    }
+    syncAuthUser()
+  } catch {
+    // Keep current session state on transient network errors.
+  }
+}
+
+function handleAuthChanged() {
+  validateAuthToken()
 }
 
 function logout() {
   localStorage.removeItem('auth_token')
   localStorage.removeItem('auth_user')
   syncAuthUser()
-  router.push('/')
+  window.location.reload()
 }
 
 onMounted(() => {
-  syncAuthUser()
+  validateAuthToken()
   window.addEventListener('auth-changed', handleAuthChanged)
   window.addEventListener('storage', handleAuthChanged)
 })

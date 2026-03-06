@@ -34,7 +34,7 @@
         </div>
 
         <div class="d-flex align-items-center mb-4">
-          <h2 class="text-primary mb-0 me-4">${{ Number(sheet.price).toFixed(2) }}</h2>
+          <h2 class="text-primary mb-0 me-4">Rp{{ Number(sheet.price).toFixed(2) }}</h2>
           <button class="btn btn-primary btn-lg" @click="addToCart">
             <i class="bi bi-cart-plus"></i> Add to Cart
           </button>

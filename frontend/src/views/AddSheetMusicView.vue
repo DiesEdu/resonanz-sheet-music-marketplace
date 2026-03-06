@@ -3,7 +3,11 @@
     <div class="text-center mb-4">
       <h1 class="section-title animate-fade-up">Add New Sheet Music</h1>
       <p class="text-muted animate-fade-up delay-1">
-        {{ isEditMode ? 'Update your score from marketplace catalog.' : 'Publish a new score in your marketplace catalog.' }}
+        {{
+          isEditMode
+            ? 'Update your score from marketplace catalog.'
+            : 'Publish a new score in your marketplace catalog.'
+        }}
       </p>
       <span class="badge bg-gold mb-3 animate-fade-scale">Seller Portal</span>
     </div>
@@ -65,7 +69,7 @@
           </div>
 
           <div class="col-md-6">
-            <label for="price" class="form-label">Price (USD)</label>
+            <label for="price" class="form-label">Price (IDR)</label>
             <input
               id="price"
               v-model.number="form.price"
@@ -173,7 +177,7 @@
                 <td>{{ sheet.composer || '-' }}</td>
                 <td>{{ sheet.instrument_name || sheet.instrument || '-' }}</td>
                 <td>{{ sheet.difficulty || '-' }}</td>
-                <td class="text-end">{{ formatPrice(sheet.price) }}</td>
+                <td class="text-end">{{ formatPriceIDR(sheet.price) }}</td>
                 <td class="text-center">
                   <button
                     type="button"
@@ -189,7 +193,10 @@
           </table>
         </div>
 
-        <div v-if="mySheets.length > pageSize" class="d-flex justify-content-between align-items-center mt-3">
+        <div
+          v-if="mySheets.length > pageSize"
+          class="d-flex justify-content-between align-items-center mt-3"
+        >
           <small class="text-muted">Page {{ currentPage }} of {{ totalPages }}</small>
           <div class="d-flex gap-2">
             <button
@@ -228,6 +235,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useSheetMusicStore } from '../stores/sheetMusic'
+import { formatPriceIDR } from '@/utils/priceUtils'
 
 const sheetStore = useSheetMusicStore()
 
@@ -265,7 +273,9 @@ const currentUserId = computed(() => {
 
 const mySheets = computed(() => {
   if (!currentUserId.value) return []
-  return (sheetStore.sheets || []).filter((sheet) => Number(sheet.created_by) === currentUserId.value)
+  return (sheetStore.sheets || []).filter(
+    (sheet) => Number(sheet.created_by) === currentUserId.value,
+  )
 })
 const isEditMode = computed(() => editingSheetId.value !== null)
 const totalPages = computed(() => Math.max(1, Math.ceil(mySheets.value.length / pageSize)))
@@ -273,12 +283,6 @@ const paginatedMySheets = computed(() => {
   const start = (currentPage.value - 1) * pageSize
   return mySheets.value.slice(start, start + pageSize)
 })
-
-function formatPrice(price) {
-  const numericPrice = Number(price)
-  if (Number.isNaN(numericPrice)) return '-'
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(numericPrice)
-}
 
 function goToPage(page) {
   if (page < 1 || page > totalPages.value) return

@@ -61,7 +61,7 @@
 
       <div class="d-flex justify-content-between align-items-center">
         <div class="price-wrapper">
-          <span class="price-tag">${{ Number(sheet.price).toFixed(2) }}</span>
+          <span class="price-tag">{{ formatPriceIDR(Number(sheet.price)) }}</span>
           <small class="text-muted ms-2">PDF</small>
         </div>
         <button class="btn btn-primary btn-sm rounded-pill px-4" @click="addToCart">
@@ -85,6 +85,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../stores/cart'
+import { formatPriceIDR } from '../utils/priceUtils'
 
 const props = defineProps({
   sheet: {

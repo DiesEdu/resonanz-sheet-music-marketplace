@@ -38,13 +38,16 @@
                           -
                         </button>
                         <span class="btn btn-light btn-sm disabled">{{ item.quantity }}</span>
-                        <button class="btn btn-outline-secondary btn-sm" @click="changeQuantity(item, 1)">
+                        <button
+                          class="btn btn-outline-secondary btn-sm"
+                          @click="changeQuantity(item, 1)"
+                        >
                           +
                         </button>
                       </div>
                     </div>
                     <h5 class="text-primary mb-0">
-                      ${{ (item.price * item.quantity).toFixed(2) }}
+                      {{ formatPriceIDR(item.price * item.quantity) }}
                     </h5>
                   </div>
                 </div>
@@ -62,16 +65,16 @@
             <div class="card-body">
               <div class="d-flex justify-content-between mb-2">
                 <span>Subtotal:</span>
-                <span>${{ cartStore.cartSubtotal.toFixed(2) }}</span>
+                <span>{{ formatPriceIDR(cartStore.cartSubtotal) }}</span>
               </div>
               <div class="d-flex justify-content-between mb-2">
                 <span>Shipping:</span>
-                <span>$0.00</span>
+                <span>{{ formatPriceIDR(0) }}</span>
               </div>
               <hr />
               <div class="d-flex justify-content-between mb-3">
                 <strong>Total:</strong>
-                <strong class="text-primary">${{ cartStore.cartSubtotal.toFixed(2) }}</strong>
+                <strong class="text-primary">{{ formatPriceIDR(cartStore.cartSubtotal) }}</strong>
               </div>
               <button class="btn btn-primary w-100" @click="checkout">
                 <i class="bi bi-credit-card"></i> Proceed to Checkout
@@ -85,6 +88,7 @@
 </template>
 
 <script setup>
+import { formatPriceIDR } from '@/utils/priceUtils'
 import { useCartStore } from '../stores/cart'
 
 const cartStore = useCartStore()

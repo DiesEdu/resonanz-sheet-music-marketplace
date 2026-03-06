@@ -42,7 +42,11 @@
           </div>
 
           <button type="submit" class="btn btn-primary w-100 mt-2" :disabled="isSubmitting">
-            <span v-if="isSubmitting" class="spinner-border spinner-border-sm me-2" role="status"></span>
+            <span
+              v-if="isSubmitting"
+              class="spinner-border spinner-border-sm me-2"
+              role="status"
+            ></span>
             {{ isSubmitting ? 'Signing in...' : 'Login' }}
           </button>
         </form>
@@ -58,10 +62,8 @@
 
 <script setup>
 import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
-const router = useRouter()
 
 const form = reactive({
   username: '',
@@ -104,7 +106,7 @@ async function handleLogin() {
     localStorage.setItem('auth_user', JSON.stringify(payload.user))
     window.dispatchEvent(new Event('auth-changed'))
     successMessage.value = 'Login successful.'
-    router.push('/')
+    window.location.href = '/'
   } catch {
     errorMessage.value = 'Network error. Please try again.'
   } finally {

@@ -141,7 +141,7 @@
                         <p class="card-text text-muted">{{ sheet.composer }}</p>
                       </div>
                       <div class="text-end">
-                        <h4 class="text-gold">${{ Number(sheet.price).toFixed(2) }}</h4>
+                        <h4 class="text-gold">Rp{{ Number(sheet.price).toFixed(2) }}</h4>
                         <button class="btn btn-primary btn-sm" @click="addToCart(sheet)">
                           <i class="bi bi-cart-plus"></i> Add to Cart
                         </button>
