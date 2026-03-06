@@ -47,7 +47,7 @@
           <div class="instrument-card card h-100 text-center">
             <div class="card-body">
               <div class="icon-wrapper mb-3">
-                <component :is="instrument.icon" size="48" class="text-gold" />
+                <img :src="instrument.icon" alt="Instrument Icon" width="60" height="60" />
               </div>
               <h5 class="card-title">{{ instrument.name }}</h5>
               <p class="card-text text-muted">{{ instrument.count }} pieces</p>
@@ -141,18 +141,36 @@
 import { ref, onMounted, computed } from 'vue'
 import SheetCard from '../components/SheetCard.vue'
 import { useSheetMusicStore } from '../stores/sheetMusic'
-import { Piano, Guitar, Music } from 'lucide-vue-next'
+import symphonyIcon from '../assets/png/symphony.png'
+import choirIcon from '../assets/png/choir.png'
+import musicIcon from '../assets/png/music.png'
 
 const sheetStore = useSheetMusicStore()
 
 onMounted(() => {
   sheetStore.fetchSheetBySearch()
+  console.log('Fetched sheets:', sheetStore.sheets)
 })
 
-const instruments = ref([
-  { name: 'Piano', icon: Piano, count: 245, popularity: 85 },
-  { name: 'Violin', icon: Music, count: 189, popularity: 70 },
-  { name: 'Guitar', icon: Guitar, count: 156, popularity: 60 },
+const instruments = computed(() => [
+  {
+    name: 'Orchestra',
+    icon: symphonyIcon,
+    count: sheetStore.sheets.filter((sheet) => sheet.instrument_id === 7).length,
+    popularity: 85,
+  },
+  {
+    name: 'Choir',
+    icon: choirIcon,
+    count: sheetStore.sheets.filter((sheet) => sheet.instrument_id === 6).length,
+    popularity: 70,
+  },
+  {
+    name: 'Piano',
+    icon: musicIcon,
+    count: sheetStore.sheets.filter((sheet) => sheet.instrument_id === 1).length,
+    popularity: 60,
+  },
 ])
 
 const featuredSheets = computed(() => sheetStore.sheets.slice(0, 3))

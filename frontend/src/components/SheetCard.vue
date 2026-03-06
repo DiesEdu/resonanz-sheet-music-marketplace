@@ -115,6 +115,9 @@ function addToCart(event) {
   const authUser = localStorage.getItem('auth_user')
   if (!authUser) {
     router.push('/login')
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    })
     return
   }
 
