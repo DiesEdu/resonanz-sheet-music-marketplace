@@ -43,8 +43,8 @@
             <label for="instrument" class="form-label">Instrument</label>
             <select id="instrument" v-model="form.instrument" class="form-select" required>
               <option disabled value="">Select instrument</option>
-              <option v-for="instrument in instruments" :key="instrument" :value="instrument">
-                {{ instrument }}
+              <option v-for="instrument in instruments" :key="instrument.id" :value="instrument.id">
+                {{ instrument.name }}
               </option>
             </select>
           </div>
@@ -56,6 +56,7 @@
               <option value="Beginner">Beginner</option>
               <option value="Intermediate">Intermediate</option>
               <option value="Advanced">Advanced</option>
+              <option value="Professional">Professional</option>
             </select>
           </div>
 
@@ -235,11 +236,15 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useSheetMusicStore } from '../stores/sheetMusic'
+import { useInstruments } from '../stores/instrument'
 import { formatPriceIDR } from '@/utils/priceUtils'
 
 const sheetStore = useSheetMusicStore()
+const instrumentStore = useInstruments()
 
-const instruments = ['Piano', 'Violin', 'Guitar', 'Cello', 'Flute']
+const instruments = computed(() => {
+  return instrumentStore.instruments || []
+})
 
 const form = reactive({
   title: '',
@@ -382,6 +387,7 @@ async function handleSubmit() {
 onMounted(async () => {
   try {
     await sheetStore.fetchSheets()
+    await instrumentStore.fetchInstruments()
   } finally {
     isLoadingList.value = false
   }

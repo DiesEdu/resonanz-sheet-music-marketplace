@@ -81,7 +81,7 @@
         </div>
       </div>
 
-      <div class="row g-4">
+      <div v-if="featuredSheets.length" class="row g-4">
         <div
           v-for="(sheet, index) in featuredSheets"
           :key="sheet.id"
@@ -90,6 +90,12 @@
         >
           <SheetCard :sheet="sheet" />
         </div>
+      </div>
+      <div v-else class="premium-coming-soon animate-fade-up">
+        <div class="coming-soon-icon">
+          <i class="bi bi-stars"></i>
+        </div>
+        <p class="mb-0">Premium Pieces will coming soon</p>
       </div>
     </div>
 
@@ -247,5 +253,37 @@ function playDemo() {
 
 .min-vh-50 {
   min-height: 50vh;
+}
+
+.premium-coming-soon {
+  min-height: 240px;
+  border: 2px dashed rgba(197, 165, 114, 0.45);
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(197, 165, 114, 0.08), rgba(168, 140, 92, 0.12));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  color: #8b6f4c;
+  font-size: 1.2rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.coming-soon-icon {
+  font-size: 2.2rem;
+  color: #c5a572;
+  animation: iconFloat 1.8s ease-in-out infinite;
+}
+
+@keyframes iconFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
 }
 </style>

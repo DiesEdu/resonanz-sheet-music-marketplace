@@ -41,6 +41,20 @@ export async function getUsers() {
   return payload
 }
 
+export async function getInstruments() {
+  const response = await fetch(`${API_BASE_URL}/instruments`, {
+    method: 'GET',
+  })
+
+  const payload = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    throw new Error(payload?.error || 'Failed to fetch instruments')
+  }
+
+  return payload
+}
+
 export async function updateUserRole(userId, role) {
   const response = await fetch(`${API_BASE_URL}/users/${userId}/role`, {
     method: 'PUT',

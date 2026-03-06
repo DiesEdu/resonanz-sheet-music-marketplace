@@ -16,7 +16,9 @@
             <label class="form-label text-muted">Instrument</label>
             <select class="form-select form-select-lg" v-model="filters.instrument">
               <option value="">All Instruments</option>
-              <option v-for="inst in instruments" :key="inst" :value="inst">{{ inst }}</option>
+              <option v-for="inst in instruments" :key="inst.id" :value="inst.name">
+                {{ inst.name }}
+              </option>
             </select>
           </div>
         </div>
@@ -28,6 +30,7 @@
               <option value="Beginner">Beginner</option>
               <option value="Intermediate">Intermediate</option>
               <option value="Advanced">Advanced</option>
+              <option value="Professional">Professional</option>
             </select>
           </div>
         </div>
@@ -220,14 +223,16 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import SheetCard from '../components/SheetCard.vue'
 import { useSheetMusicStore } from '../stores/sheetMusic'
+import { useInstruments } from '@/stores/instrument'
 import { useCartStore } from '../stores/cart'
 
 const sheetStore = useSheetMusicStore()
+const instrumentStore = useInstruments()
 const cartStore = useCartStore()
 
 const viewMode = ref('grid')
 
-const instruments = ['Piano', 'Violin', 'Guitar', 'Cello', 'Flute']
+const instruments = computed(() => instrumentStore.instruments || [])
 
 const filters = ref({
   instrument: '',
@@ -349,6 +354,7 @@ onMounted(() => {
     filters.value.difficulty,
     filters.value.search,
   )
+  instrumentStore.fetchInstruments()
 })
 
 onBeforeUnmount(() => {
