@@ -4,13 +4,6 @@ import { ref } from 'vue'
 export const useSheetMusicStore = defineStore('sheetMusic', () => {
   const sheets = ref([])
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
-  const INSTRUMENT_ID_MAP = {
-    Piano: 1,
-    Violin: 2,
-    Guitar: 3,
-    Cello: 4,
-    Flute: 5,
-  }
   const DEFAULT_CATEGORY_ID = 1
 
   function getAuthHeaders() {
@@ -19,37 +12,21 @@ export const useSheetMusicStore = defineStore('sheetMusic', () => {
   }
 
   function mapFormToApiPayload(payload) {
-    const rawInstrument = payload.instrument
-    const parsedInstrumentId = Number(rawInstrument)
-    const instrumentId = Number.isInteger(parsedInstrumentId) && parsedInstrumentId > 0
-      ? parsedInstrumentId
-      : (INSTRUMENT_ID_MAP[rawInstrument] || 1)
-
     return {
       title: payload.title,
       composer: payload.composer,
       description: payload.description,
-      instrument_id: instrumentId,
+      instrument_id: payload.instrument,
       category_id: payload.category_id || DEFAULT_CATEGORY_ID,
       difficulty: payload.difficulty,
       price: Number(payload.price),
       pages: Number(payload.pages),
       format: payload.format,
+      pdf_name: payload.pdf_name || '',
       file_path: payload.file_path || '',
       cover_image: payload.coverImage || payload.cover_image || '',
       is_featured: 0,
       is_premium: 0,
-    }
-  }
-
-  async function fetchSheets() {
-    try {
-      const response = await fetch(`${API_BASE_URL}/sheets`)
-      const result = await response.json()
-
-      sheets.value = result.data || []
-    } catch (error) {
-      console.error('Failed to fetch sheets:', error)
     }
   }
 
@@ -99,7 +76,7 @@ export const useSheetMusicStore = defineStore('sheetMusic', () => {
       throw new Error(result?.error || 'Failed to add sheet')
     }
 
-    await fetchSheets()
+    await fetchSheetBySearch()
     return result
   }
 
@@ -124,11 +101,9 @@ export const useSheetMusicStore = defineStore('sheetMusic', () => {
       throw new Error(result?.error || 'Failed to update sheet')
     }
 
-    await fetchSheets()
+    await fetchSheetBySearch()
     return result
   }
 
-  fetchSheets()
-
-  return { sheets, fetchSheets, fetchSheetBySearch, addSheet, updateSheet }
+  return { sheets, fetchSheetBySearch, addSheet, updateSheet }
 })

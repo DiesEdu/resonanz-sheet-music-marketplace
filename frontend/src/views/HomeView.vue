@@ -146,7 +146,7 @@ import { Piano, Guitar, Music } from 'lucide-vue-next'
 const sheetStore = useSheetMusicStore()
 
 onMounted(() => {
-  sheetStore.fetchSheets()
+  sheetStore.fetchSheetBySearch()
 })
 
 const instruments = ref([

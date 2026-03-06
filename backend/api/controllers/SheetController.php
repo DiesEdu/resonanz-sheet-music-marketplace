@@ -157,6 +157,7 @@ class SheetController
             'price' => (float) $data['price'],
             'pages' => (int) $data['pages'],
             'format' => trim((string) $data['format']),
+            'pdf_name' => trim((string) ($data['pdf_name'] ?? '')),
             'file_path' => $resolvedFilePath,
             'cover_image' => trim((string) ($data['cover_image'] ?? '')),
             'is_featured' => !empty($data['is_featured']) ? 1 : 0,
@@ -204,11 +205,11 @@ class SheetController
     {
         $query = "INSERT INTO sheet_music (
             title, subtitle, composer, description, instrument_id, list_instruments, category_id,
-            difficulty, price, pages, format, file_path, cover_image,
+            difficulty, price, pages, format, pdf_name, file_path, cover_image,
             is_featured, is_premium, rating, reviews_count, downloads_count, views_count, created_by
         ) VALUES (
             :title, :subtitle, :composer, :description, :instrument_id, :list_instruments, :category_id,
-            :difficulty, :price, :pages, :format, :file_path, :cover_image,
+            :difficulty, :price, :pages, :format, :pdf_name, :file_path, :cover_image,
             :is_featured, :is_premium, :rating, :reviews_count, :downloads_count, :views_count, :created_by
         )";
 
@@ -226,6 +227,7 @@ class SheetController
             ':price' => $data['price'],
             ':pages' => $data['pages'],
             ':format' => $data['format'],
+            ':pdf_name' => $data['pdf_name'],
             ':file_path' => $data['file_path'],
             ':cover_image' => $data['cover_image'],
             ':is_featured' => $data['is_featured'],

@@ -109,7 +109,12 @@
               :disabled="isEditMode"
             />
             <small class="text-muted d-block mt-1">
-              {{ selectedPdfName || (isEditMode ? 'PDF replacement is not available in edit mode yet.' : 'Upload a PDF file.') }}
+              {{
+                selectedPdfName ||
+                (isEditMode
+                  ? 'PDF replacement is not available in edit mode yet.'
+                  : 'Upload a PDF file.')
+              }}
             </small>
           </div>
 
@@ -572,6 +577,7 @@ async function handleSubmit() {
 
     await sheetStore.addSheet({
       ...form,
+      pdf_name: selectedPdfName.value,
       pdfFile: selectedPdfFile.value,
       created_by: currentUserId.value,
     })
@@ -585,7 +591,7 @@ async function handleSubmit() {
 onMounted(async () => {
   try {
     await Promise.all([
-      sheetStore.fetchSheets(),
+      sheetStore.fetchSheetBySearch(),
       instrumentStore.fetchInstruments(),
       fetchOwnedPurchases(),
     ])
