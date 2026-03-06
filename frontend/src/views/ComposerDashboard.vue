@@ -230,6 +230,47 @@
         </div>
       </div>
     </div>
+
+    <div class="card list-card animate-fade-scale delay-2 mt-4">
+      <div class="card-body p-4 p-md-5">
+        <h2 class="h5 mb-3">Purchased Sheets (My Catalog)</h2>
+
+        <div v-if="isLoadingPurchases" class="text-muted">Loading purchased sheet music...</div>
+
+        <div v-else-if="purchaseErrorMessage" class="alert alert-danger py-2 mb-0">
+          {{ purchaseErrorMessage }}
+        </div>
+
+        <div v-else-if="ownedPurchasedSheets.length === 0" class="text-muted">
+          No purchases found for your sheet music yet.
+        </div>
+
+        <div v-else class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Composer</th>
+                <th>Instrument</th>
+                <th class="text-center">Qty</th>
+                <th class="text-end">Price</th>
+                <th>Purchase Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in ownedPurchasedSheets" :key="item.order_item_id">
+                <td>{{ item.title || '-' }}</td>
+                <td>{{ item.composer || '-' }}</td>
+                <td>{{ getInstrumentName(item.instrument_id) }}</td>
+                <td class="text-center">{{ item.quantity || 1 }}</td>
+                <td class="text-end">{{ formatPriceIDR(Number(item.sale_price) || 0) }}</td>
+                <td>{{ formatPurchaseDate(item.purchase_date) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
 
@@ -241,6 +282,7 @@ import { formatPriceIDR } from '@/utils/priceUtils'
 
 const sheetStore = useSheetMusicStore()
 const instrumentStore = useInstruments()
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
 
 const instruments = computed(() => {
   return instrumentStore.instruments || []
@@ -261,9 +303,12 @@ const form = reactive({
 const errorMessage = ref('')
 const successMessage = ref('')
 const isLoadingList = ref(true)
+const isLoadingPurchases = ref(true)
+const purchaseErrorMessage = ref('')
 const editingSheetId = ref(null)
 const currentPage = ref(1)
 const pageSize = 5
+const purchasedSheets = ref([])
 
 const currentUserId = computed(() => {
   try {
@@ -282,12 +327,70 @@ const mySheets = computed(() => {
     (sheet) => Number(sheet.created_by) === currentUserId.value,
   )
 })
+const ownedPurchasedSheets = computed(() => {
+  if (!currentUserId.value) return []
+  return (purchasedSheets.value || []).filter(
+    (item) => Number(item.created_by) === currentUserId.value,
+  )
+})
 const isEditMode = computed(() => editingSheetId.value !== null)
 const totalPages = computed(() => Math.max(1, Math.ceil(mySheets.value.length / pageSize)))
 const paginatedMySheets = computed(() => {
   const start = (currentPage.value - 1) * pageSize
   return mySheets.value.slice(start, start + pageSize)
 })
+
+function getAuthHeaders() {
+  const token = localStorage.getItem('auth_token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+function getInstrumentName(instrumentId) {
+  const numericId = Number(instrumentId)
+  const match = instruments.value.find((instrument) => Number(instrument.id) === numericId)
+  return match?.name || '-'
+}
+
+function formatPurchaseDate(value) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
+}
+
+async function fetchOwnedPurchases() {
+  if (!currentUserId.value) {
+    purchasedSheets.value = []
+    isLoadingPurchases.value = false
+    return
+  }
+
+  purchaseErrorMessage.value = ''
+  isLoadingPurchases.value = true
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/orders/sales`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    })
+
+    const result = await response.json().catch(() => [])
+    if (!response.ok) {
+      throw new Error(result?.error || 'Failed to load purchased sheet music.')
+    }
+
+    purchasedSheets.value = Array.isArray(result) ? result : []
+  } catch (error) {
+    purchasedSheets.value = []
+    purchaseErrorMessage.value = error?.message || 'Failed to load purchased sheet music.'
+  } finally {
+    isLoadingPurchases.value = false
+  }
+}
 
 function goToPage(page) {
   if (page < 1 || page > totalPages.value) return
@@ -386,8 +489,11 @@ async function handleSubmit() {
 
 onMounted(async () => {
   try {
-    await sheetStore.fetchSheets()
-    await instrumentStore.fetchInstruments()
+    await Promise.all([
+      sheetStore.fetchSheets(),
+      instrumentStore.fetchInstruments(),
+      fetchOwnedPurchases(),
+    ])
   } finally {
     isLoadingList.value = false
   }

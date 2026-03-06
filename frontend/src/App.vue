@@ -222,7 +222,19 @@ onBeforeUnmount(() => {
 const isLoggedIn = computed(() => !!authUser.value)
 const isAdmin = computed(() => authUser.value?.role === 'admin')
 const isComposer = computed(() => authUser.value?.role === 'composer')
-const displayName = computed(() => authUser.value?.full_name || authUser.value?.username || 'User')
+const displayName = computed(() => {
+  const rawName = `${authUser.value?.full_name || authUser.value?.username || ''}`.trim()
+  if (!rawName) return 'U'
+
+  const initials = rawName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('')
+
+  return initials || rawName.charAt(0).toUpperCase() || 'U'
+})
 
 const navItems = computed(() => [
   { name: 'Home', path: '/', icon: 'bi bi-house-door' },

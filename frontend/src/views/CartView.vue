@@ -80,8 +80,13 @@
                 <strong>Total:</strong>
                 <strong class="text-primary">{{ formatPriceIDR(cartStore.cartSubtotal) }}</strong>
               </div>
-              <button class="btn btn-primary w-100" @click="checkout">
+              <div v-if="checkoutError" class="alert alert-danger py-2 mb-3">{{ checkoutError }}</div>
+              <div v-if="checkoutSuccess" class="alert alert-success py-2 mb-3">
+                {{ checkoutSuccess }}
+              </div>
+              <button class="btn btn-primary w-100" :disabled="isCheckingOut" @click="checkout">
                 <i class="bi bi-credit-card"></i> Proceed to Checkout
+                <span v-if="isCheckingOut" class="spinner-border spinner-border-sm ms-2"></span>
               </button>
             </div>
           </div>
@@ -92,10 +97,17 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { formatPriceIDR } from '@/utils/priceUtils'
 import { useCartStore } from '../stores/cart'
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
 const cartStore = useCartStore()
+const router = useRouter()
+const isCheckingOut = ref(false)
+const checkoutError = ref('')
+const checkoutSuccess = ref('')
 
 function removeItem(id) {
   cartStore.removeFromCart(id)
@@ -106,8 +118,53 @@ async function changeQuantity(item, delta) {
   await cartStore.updateQuantity(item.id, nextQuantity)
 }
 
-function checkout() {
-  alert('Checkout functionality would be implemented here!')
+function getAuthHeaders() {
+  const token = localStorage.getItem('auth_token')
+  const headers = {
+    'Content-Type': 'application/json',
+  }
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`
+  }
+
+  return headers
+}
+
+async function checkout() {
+  if (isCheckingOut.value) return
+
+  checkoutError.value = ''
+  checkoutSuccess.value = ''
+
+  const token = localStorage.getItem('auth_token')
+  if (!token) {
+    checkoutError.value = 'Please login first to complete checkout.'
+    router.push('/login')
+    return
+  }
+
+  isCheckingOut.value = true
+  try {
+    const response = await fetch(`${API_BASE_URL}/orders/checkout`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({}),
+    })
+    const result = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      throw new Error(result?.error || `Checkout failed (${response.status})`)
+    }
+
+    checkoutSuccess.value = result?.message || 'Checkout successful.'
+    await cartStore.fetchCart()
+  } catch (error) {
+    checkoutError.value = error?.message || 'Failed to complete checkout.'
+  } finally {
+    isCheckingOut.value = false
+  }
 }
 </script>
 

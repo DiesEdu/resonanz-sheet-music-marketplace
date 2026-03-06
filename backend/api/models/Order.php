@@ -172,6 +172,34 @@ class Order
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function getComposerSales($composer_id)
+    {
+        $query = "SELECT oi.id as order_item_id,
+                         oi.sheet_id,
+                         oi.quantity,
+                         oi.price as sale_price,
+                         o.id as order_id,
+                         o.order_number,
+                         o.user_id as buyer_id,
+                         o.created_at as purchase_date,
+                         s.title,
+                         s.composer,
+                         s.instrument_id,
+                         s.created_by
+                  FROM order_items oi
+                  JOIN orders o ON oi.order_id = o.id
+                  JOIN sheet_music s ON oi.sheet_id = s.id
+                  WHERE s.created_by = :composer_id
+                  AND o.payment_status = 'paid'
+                  ORDER BY o.created_at DESC";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':composer_id', $composer_id);
+        $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function verifyPurchase($user_id, $sheet_id)
     {
         $query = "SELECT COUNT(*) as count

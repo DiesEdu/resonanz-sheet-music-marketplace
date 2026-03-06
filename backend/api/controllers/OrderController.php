@@ -24,29 +24,34 @@ class OrderController
     public function handleRequest($method, $id = null, $action = null)
     {
         $user_data = AuthMiddleware::authenticate();
+        $requestedAction = $action ?? $id;
 
         switch ($method) {
             case 'GET':
                 if ($id && $action === 'download') {
                     $this->downloadSheet($id, $user_data['id']);
-                } elseif ($id) {
-                    $this->getOrder($id, $user_data['id']);
-                } elseif ($action === 'downloads') {
+                } elseif ($requestedAction === 'sales') {
+                    $this->getComposerSales($user_data);
+                } elseif ($requestedAction === 'downloads') {
                     $this->getDownloads($user_data['id']);
+                } elseif ($id && is_numeric($id)) {
+                    $this->getOrder($id, $user_data['id']);
                 } else {
                     $this->getUserOrders($user_data['id']);
                 }
                 break;
 
             case 'POST':
-                if ($action === 'checkout') {
+                if ($requestedAction === 'checkout') {
                     $this->checkout($user_data['id']);
                 }
                 break;
 
             case 'PUT':
-                if ($action === 'status' && $id) {
+                if ($action === 'status' && $id && is_numeric($id)) {
                     $this->updateStatus($id);
+                } elseif ($id === 'status' && $action && is_numeric($action)) {
+                    $this->updateStatus($action);
                 }
                 break;
 
@@ -151,6 +156,19 @@ class OrderController
         $downloads = $this->order->getDownloads($user_id);
         http_response_code(200);
         echo json_encode($downloads);
+    }
+
+    private function getComposerSales($user_data)
+    {
+        if ($user_data['role'] !== 'admin' && $user_data['role'] !== 'composer') {
+            http_response_code(403);
+            echo json_encode(['error' => 'Admin/Composer access required']);
+            return;
+        }
+
+        $sales = $this->order->getComposerSales($user_data['id']);
+        http_response_code(200);
+        echo json_encode($sales);
     }
 
     private function downloadSheet($sheet_id, $user_id)
