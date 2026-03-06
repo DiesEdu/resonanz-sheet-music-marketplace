@@ -19,11 +19,17 @@ export const useSheetMusicStore = defineStore('sheetMusic', () => {
   }
 
   function mapFormToApiPayload(payload) {
+    const rawInstrument = payload.instrument
+    const parsedInstrumentId = Number(rawInstrument)
+    const instrumentId = Number.isInteger(parsedInstrumentId) && parsedInstrumentId > 0
+      ? parsedInstrumentId
+      : (INSTRUMENT_ID_MAP[rawInstrument] || 1)
+
     return {
       title: payload.title,
       composer: payload.composer,
       description: payload.description,
-      instrument_id: INSTRUMENT_ID_MAP[payload.instrument] || 1,
+      instrument_id: instrumentId,
       category_id: payload.category_id || DEFAULT_CATEGORY_ID,
       difficulty: payload.difficulty,
       price: Number(payload.price),
@@ -65,14 +71,27 @@ export const useSheetMusicStore = defineStore('sheetMusic', () => {
 
   async function addSheet(payload) {
     const requestBody = mapFormToApiPayload(payload)
+    const hasPdfFile = payload?.pdfFile instanceof File
+
+    const headers = { ...getAuthHeaders() }
+    let body
+
+    if (hasPdfFile) {
+      const formData = new FormData()
+      Object.entries(requestBody).forEach(([key, value]) => {
+        formData.append(key, value ?? '')
+      })
+      formData.append('sheet_file', payload.pdfFile)
+      body = formData
+    } else {
+      headers['Content-Type'] = 'application/json'
+      body = JSON.stringify(requestBody)
+    }
 
     const response = await fetch(`${API_BASE_URL}/sheets`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeaders(),
-      },
-      body: JSON.stringify(requestBody),
+      headers,
+      body,
     })
 
     const result = await response.json().catch(() => ({}))

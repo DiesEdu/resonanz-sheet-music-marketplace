@@ -98,6 +98,37 @@
           </div>
 
           <div class="col-12">
+            <label for="sheetFile" class="form-label">Sheet PDF File</label>
+            <input
+              id="sheetFile"
+              type="file"
+              class="form-control"
+              accept="application/pdf,.pdf"
+              @change="handlePdfFileChange"
+              :required="!isEditMode"
+              :disabled="isEditMode"
+            />
+            <small class="text-muted d-block mt-1">
+              {{ selectedPdfName || (isEditMode ? 'PDF replacement is not available in edit mode yet.' : 'Upload a PDF file.') }}
+            </small>
+          </div>
+
+          <div v-if="pdfPreviewUrl" class="col-12">
+            <label class="form-label">PDF Preview</label>
+            <object
+              :key="pdfPreviewUrl"
+              :data="pdfPreviewUrl"
+              type="application/pdf"
+              class="pdf-preview-frame"
+            >
+              <p class="p-3 mb-0">
+                Preview is not available in this browser.
+                <a :href="pdfPreviewUrl" target="_blank" rel="noopener">Open PDF</a>.
+              </p>
+            </object>
+          </div>
+
+          <div class="col-12">
             <label for="coverImage" class="form-label">Cover Image URL</label>
             <input
               id="coverImage"
@@ -275,7 +306,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useSheetMusicStore } from '../stores/sheetMusic'
 import { useInstruments } from '../stores/instrument'
 import { formatPriceIDR } from '@/utils/priceUtils'
@@ -305,10 +336,20 @@ const successMessage = ref('')
 const isLoadingList = ref(true)
 const isLoadingPurchases = ref(true)
 const purchaseErrorMessage = ref('')
+const selectedPdfFile = ref(null)
+const selectedPdfName = ref('')
+const pdfPreviewUrl = ref('')
 const editingSheetId = ref(null)
 const currentPage = ref(1)
 const pageSize = 5
 const purchasedSheets = ref([])
+
+function setPdfPreviewUrl(nextUrl = '') {
+  if (pdfPreviewUrl.value && pdfPreviewUrl.value.startsWith('blob:')) {
+    URL.revokeObjectURL(pdfPreviewUrl.value)
+  }
+  pdfPreviewUrl.value = nextUrl
+}
 
 const currentUserId = computed(() => {
   try {
@@ -407,6 +448,48 @@ function resetForm() {
   form.pages = null
   form.coverImage = ''
   form.description = ''
+  selectedPdfFile.value = null
+  selectedPdfName.value = ''
+  setPdfPreviewUrl('')
+}
+
+function buildAssetUrl(path) {
+  if (!path) return ''
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('blob:')) {
+    return path
+  }
+
+  try {
+    const apiUrl = new URL(API_BASE_URL)
+    return `${apiUrl.origin}${path}`
+  } catch {
+    return path
+  }
+}
+
+function handlePdfFileChange(event) {
+  const file = event?.target?.files?.[0] || null
+
+  if (!file) {
+    selectedPdfFile.value = null
+    selectedPdfName.value = ''
+    setPdfPreviewUrl('')
+    return
+  }
+
+  if (file.type !== 'application/pdf') {
+    errorMessage.value = 'Please upload a PDF file only.'
+    selectedPdfFile.value = null
+    selectedPdfName.value = ''
+    setPdfPreviewUrl('')
+    event.target.value = ''
+    return
+  }
+
+  selectedPdfFile.value = file
+  selectedPdfName.value = file.name
+  errorMessage.value = ''
+  setPdfPreviewUrl(URL.createObjectURL(file))
 }
 
 function startEdit(sheet) {
@@ -421,6 +504,9 @@ function startEdit(sheet) {
   form.pages = Number(sheet.pages) || 1
   form.coverImage = sheet.coverImage || sheet.cover_image || ''
   form.description = sheet.description || ''
+  selectedPdfFile.value = null
+  selectedPdfName.value = ''
+  setPdfPreviewUrl(buildAssetUrl(sheet.file_path || ''))
   errorMessage.value = ''
   successMessage.value = ''
 }
@@ -471,6 +557,11 @@ async function handleSubmit() {
     return
   }
 
+  if (!isEditMode.value && !selectedPdfFile.value) {
+    errorMessage.value = 'Please upload a PDF file.'
+    return
+  }
+
   try {
     if (isEditMode.value) {
       await sheetStore.updateSheet(editingSheetId.value, { ...form })
@@ -479,7 +570,11 @@ async function handleSubmit() {
       return
     }
 
-    await sheetStore.addSheet({ ...form, created_by: currentUserId.value })
+    await sheetStore.addSheet({
+      ...form,
+      pdfFile: selectedPdfFile.value,
+      created_by: currentUserId.value,
+    })
     successMessage.value = 'Sheet music published successfully.'
     resetForm()
   } catch (error) {
@@ -497,6 +592,10 @@ onMounted(async () => {
   } finally {
     isLoadingList.value = false
   }
+})
+
+onBeforeUnmount(() => {
+  setPdfPreviewUrl('')
 })
 </script>
 
@@ -535,5 +634,13 @@ onMounted(async () => {
 
 .bg-gold {
   background: linear-gradient(135deg, #c5a572, #a88c5c);
+}
+
+.pdf-preview-frame {
+  width: 100%;
+  height: 420px;
+  border: 1px solid #dee2e6;
+  border-radius: 12px;
+  background-color: #fff;
 }
 </style>

@@ -120,7 +120,8 @@ class SheetController
         // Check admin access
         $userData = AuthMiddleware::requireComposer();
 
-        $data = json_decode(file_get_contents("php://input"), true);
+        $data = $this->getRequestData();
+        $uploadedFilePath = $this->handleFileUpload('sheet_file');
 
         if (empty($data['title']) || empty($data['composer'])) {
             http_response_code(400);
@@ -137,17 +138,26 @@ class SheetController
             }
         }
 
+        $resolvedFilePath = trim((string) ($uploadedFilePath ?? ($data['file_path'] ?? '')));
+        if ($resolvedFilePath === '') {
+            http_response_code(400);
+            echo json_encode(['error' => 'Missing required field: file_path']);
+            return;
+        }
+
         $normalizedData = [
             'title' => trim((string) $data['title']),
+            'subtitle' => trim((string) ($data['subtitle'] ?? '')),
             'composer' => trim((string) $data['composer']),
             'description' => trim((string) ($data['description'] ?? '')),
             'instrument_id' => (int) $data['instrument_id'],
+            'list_instruments' => isset($data['list_instruments']) ? json_encode($data['list_instruments']) : null,
             'category_id' => (int) $data['category_id'],
             'difficulty' => trim((string) $data['difficulty']),
             'price' => (float) $data['price'],
             'pages' => (int) $data['pages'],
             'format' => trim((string) $data['format']),
-            'file_path' => trim((string) ($data['file_path'] ?? '')),
+            'file_path' => $resolvedFilePath,
             'cover_image' => trim((string) ($data['cover_image'] ?? '')),
             'is_featured' => !empty($data['is_featured']) ? 1 : 0,
             'is_premium' => !empty($data['is_premium']) ? 1 : 0,
@@ -178,14 +188,26 @@ class SheetController
         echo json_encode(['error' => 'Unable to create sheet music']);
     }
 
+    private function getRequestData()
+    {
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (stripos($contentType, 'multipart/form-data') !== false) {
+            return $_POST;
+        }
+
+        $rawBody = file_get_contents("php://input");
+        $decoded = json_decode($rawBody, true);
+        return is_array($decoded) ? $decoded : [];
+    }
+
     private function addSheetMusic($data)
     {
         $query = "INSERT INTO sheet_music (
-            title, composer, description, instrument_id, category_id,
+            title, subtitle, composer, description, instrument_id, list_instruments, category_id,
             difficulty, price, pages, format, file_path, cover_image,
             is_featured, is_premium, rating, reviews_count, downloads_count, views_count, created_by
         ) VALUES (
-            :title, :composer, :description, :instrument_id, :category_id,
+            :title, :subtitle, :composer, :description, :instrument_id, :list_instruments, :category_id,
             :difficulty, :price, :pages, :format, :file_path, :cover_image,
             :is_featured, :is_premium, :rating, :reviews_count, :downloads_count, :views_count, :created_by
         )";
@@ -194,9 +216,11 @@ class SheetController
 
         return $stmt->execute([
             ':title' => $data['title'],
+            ':subtitle' => $data['subtitle'],
             ':composer' => $data['composer'],
             ':description' => $data['description'],
             ':instrument_id' => $data['instrument_id'],
+            ':list_instruments' => $data['list_instruments'],
             ':category_id' => $data['category_id'],
             ':difficulty' => $data['difficulty'],
             ':price' => $data['price'],
@@ -302,6 +326,17 @@ class SheetController
         }
 
         $file = $_FILES[$field_name];
+        if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            return null;
+        }
+
+        $allowedMimeTypes = ['application/pdf'];
+        $tmpName = $file['tmp_name'] ?? '';
+        $detectedMime = $tmpName !== '' ? mime_content_type($tmpName) : '';
+        if (!in_array($detectedMime, $allowedMimeTypes, true)) {
+            return null;
+        }
+
         $upload_dir = __DIR__ . '/../uploads/sheets/';
 
         if (!file_exists($upload_dir)) {
@@ -309,6 +344,9 @@ class SheetController
         }
 
         $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+        if (strtolower((string) $extension) !== 'pdf') {
+            return null;
+        }
         $filename = uniqid() . '_' . time() . '.' . $extension;
         $destination = $upload_dir . $filename;
 

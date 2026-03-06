@@ -5,3 +5,5 @@ ALTER TABLE sheet_music ADD COLUMN created_by INT(11) NOT NULL AFTER views_count
 
 UPDATE sheet_music SET created_by = 1;
 --------------------------------------------------------------
+ALTER TABLE sheet_music ADD COLUMN subtitle VARCHAR(255) NULL AFTER title;
+ALTER TABLE sheet_music ADD COLUMN list_instruments JSON NULL AFTER instrument_id;

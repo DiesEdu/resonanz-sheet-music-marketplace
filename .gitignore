@@ -16,6 +16,7 @@ coverage
 *.local
 
 .env
+/backend/api/uploads
 
 # Editor directories and files
 .vscode/*
