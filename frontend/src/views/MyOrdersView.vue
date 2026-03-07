@@ -62,19 +62,49 @@
               </div>
 
               <div class="mt-3">
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-primary"
-                  :disabled="!order._orderId || orderDetailsState[order._orderId]?.loading"
-                  @click="toggleOrderItems(order._orderId)"
-                >
-                  <span
-                    v-if="orderDetailsState[order._orderId]?.loading"
-                    class="spinner-border spinner-border-sm me-2"
-                    role="status"
-                  ></span>
-                  {{ orderDetailsState[order._orderId]?.open ? 'Hide Items' : 'View Items' }}
-                </button>
+                <div class="d-flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-primary"
+                    :disabled="!order._orderId || orderDetailsState[order._orderId]?.loading"
+                    @click="toggleOrderItems(order._orderId)"
+                  >
+                    <span
+                      v-if="orderDetailsState[order._orderId]?.loading"
+                      class="spinner-border spinner-border-sm me-2"
+                      role="status"
+                    ></span>
+                    {{ orderDetailsState[order._orderId]?.open ? 'Hide Items' : 'View Items' }}
+                  </button>
+                  <button
+                    v-if="canProcessPayment(order)"
+                    type="button"
+                    class="btn btn-sm btn-primary"
+                    :disabled="!order._orderId || actionState[order._orderId]?.processing"
+                    @click="processPayment(order)"
+                  >
+                    <span
+                      v-if="actionState[order._orderId]?.processing"
+                      class="spinner-border spinner-border-sm me-2"
+                      role="status"
+                    ></span>
+                    Process
+                  </button>
+                  <button
+                    v-if="canCancelOrder(order)"
+                    type="button"
+                    class="btn btn-sm btn-outline-danger"
+                    :disabled="!order._orderId || actionState[order._orderId]?.cancelling"
+                    @click="openCancelConfirm(order)"
+                  >
+                    <span
+                      v-if="actionState[order._orderId]?.cancelling"
+                      class="spinner-border spinner-border-sm me-2"
+                      role="status"
+                    ></span>
+                    Cancel Order
+                  </button>
+                </div>
               </div>
 
               <div v-if="orderDetailsState[order._orderId]?.open" class="mt-3">
@@ -106,11 +136,46 @@
         </div>
       </div>
     </div>
+
+    <transition name="confirm-backdrop">
+      <div
+        v-if="showCancelConfirm"
+        class="cancel-confirm-backdrop"
+        @click="closeCancelConfirm"
+      ></div>
+    </transition>
+    <transition name="confirm-dialog">
+      <div v-if="showCancelConfirm" class="cancel-confirm-wrap" role="dialog" aria-modal="true">
+        <div class="cancel-confirm-card">
+          <div class="cancel-icon">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+          </div>
+          <h2 class="h5 mb-2">Cancel this order?</h2>
+          <p class="text-muted mb-4">
+            This action cannot be undone and payment for this order will be closed.
+          </p>
+          <div class="d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm" @click="closeCancelConfirm">
+              Keep Order
+            </button>
+            <button
+              type="button"
+              class="btn btn-danger btn-sm"
+              :disabled="isConfirmCancelling"
+              @click="confirmCancelOrder"
+            >
+              <span v-if="isConfirmCancelling" class="spinner-border spinner-border-sm me-2"></span>
+              Yes, Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </section>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useOrderStore } from '@/stores/order'
 
@@ -120,6 +185,9 @@ const orders = ref([])
 const isLoading = ref(false)
 const loadError = ref('')
 const orderDetailsState = ref({})
+const actionState = ref({})
+const showCancelConfirm = ref(false)
+const cancelTargetOrder = ref(null)
 
 function handleUnauthorized(errorMessage) {
   const normalized = `${errorMessage || ''}`.toLowerCase()
@@ -188,6 +256,25 @@ function ensureDetailsState(orderId) {
   }
 }
 
+function ensureActionState(orderId) {
+  if (!actionState.value[orderId]) {
+    actionState.value[orderId] = {
+      processing: false,
+      cancelling: false,
+    }
+  }
+}
+
+function canProcessPayment(order) {
+  const paymentStatus = `${order?.payment_status || ''}`.toLowerCase()
+  const orderStatus = `${order?.status || ''}`.toLowerCase()
+  return paymentStatus === 'pending' && orderStatus !== 'cancelled'
+}
+
+function canCancelOrder(order) {
+  return `${order?.status || ''}`.toLowerCase() === 'pending'
+}
+
 async function loadOrders() {
   isLoading.value = true
   loadError.value = ''
@@ -238,6 +325,77 @@ async function toggleOrderItems(orderId) {
   }
 }
 
+async function processPayment(order) {
+  const orderId = order?._orderId
+  if (!orderId || !canProcessPayment(order)) return
+
+  ensureActionState(orderId)
+  const state = actionState.value[orderId]
+  if (state.processing) return
+
+  state.processing = true
+  loadError.value = ''
+  try {
+    await orderStore.openPaymentModal({
+      ...order,
+      order_id: orderId,
+      billing_info: {
+        name: order.billing_name || '',
+        email: order.billing_email || '',
+        phone: order.billing_phone || '',
+      },
+    })
+  } catch (error) {
+    const message = error?.message || 'Unable to start payment process.'
+    if (handleUnauthorized(message)) return
+    loadError.value = message
+  } finally {
+    state.processing = false
+  }
+}
+
+function openCancelConfirm(order) {
+  if (!order?._orderId || !canCancelOrder(order)) return
+  cancelTargetOrder.value = order
+  showCancelConfirm.value = true
+}
+
+function closeCancelConfirm() {
+  if (isConfirmCancelling.value) return
+  showCancelConfirm.value = false
+  cancelTargetOrder.value = null
+}
+
+const isConfirmCancelling = computed(() => {
+  const orderId = cancelTargetOrder.value?._orderId
+  if (!orderId) return false
+  return Boolean(actionState.value[orderId]?.cancelling)
+})
+
+async function confirmCancelOrder() {
+  const order = cancelTargetOrder.value
+  const orderId = order?._orderId
+  if (!orderId || !canCancelOrder(order)) return
+
+  ensureActionState(orderId)
+  const state = actionState.value[orderId]
+  if (state.cancelling) return
+
+  state.cancelling = true
+  loadError.value = ''
+  try {
+    await orderStore.cancelMyOrder(orderId)
+    closeCancelConfirm()
+    await loadOrders()
+  } catch (error) {
+    const message = error?.message || 'Unable to cancel order.'
+    if (handleUnauthorized(message)) return
+    loadError.value = message
+  } finally {
+    state.cancelling = false
+  }
+}
+
 onMounted(() => {
   loadOrders()
 })
@@ -246,9 +404,69 @@ onMounted(() => {
 <style scoped>
 .my-orders-page {
   min-height: calc(100vh - 220px);
+  position: relative;
 }
 
 .order-card {
   background: #fff;
+}
+
+.cancel-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 1050;
+}
+
+.cancel-confirm-wrap {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 1051;
+}
+
+.cancel-confirm-card {
+  width: min(420px, 100%);
+  background: #fff;
+  border-radius: 1rem;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+  border: 1px solid #f0f0f0;
+  padding: 1.25rem;
+}
+
+.cancel-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  background: #fff3cd;
+  color: #a15c00;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+
+.confirm-backdrop-enter-active,
+.confirm-backdrop-leave-active {
+  transition: opacity 0.22s ease;
+}
+
+.confirm-backdrop-enter-from,
+.confirm-backdrop-leave-to {
+  opacity: 0;
+}
+
+.confirm-dialog-enter-active,
+.confirm-dialog-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.confirm-dialog-enter-from,
+.confirm-dialog-leave-to {
+  opacity: 0;
+  transform: translateY(8px) scale(0.97);
 }
 </style>

@@ -83,21 +83,48 @@ export const useOrderStore = defineStore('order', () => {
     return payload
   }
 
+  async function cancelMyOrder(orderId) {
+    const response = await fetch(`${API_BASE_URL}/orders/${orderId}/cancel`, {
+      method: 'PUT',
+      headers: {
+        ...getAuthHeaders(),
+      },
+    })
+
+    const payload = await response.json().catch(() => null)
+
+    if (!response.ok) {
+      throw new Error(payload?.error || 'Failed to cancel order')
+    }
+
+    return payload
+  }
+
   // Modal implementation
   const openPaymentModal = async (order) => {
+    const parsedUser = (() => {
+      try {
+        return JSON.parse(localStorage.getItem('auth_user') || 'null')
+      } catch {
+        return null
+      }
+    })()
+
+    const resolvedOrderId = order.order_id || order.id || order.order_number
+    const billing = order.billing_info || {}
     const inputOrder = {
       transaction_details: {
-        order_id: order.order_number,
+        order_id: order.order_number || resolvedOrderId,
         gross_amount: order.total_amount,
       },
       credit_card: {
         secure: true,
       },
       customer_details: {
-        first_name: order.billing_info.name,
+        first_name: billing.name || order.billing_name || parsedUser?.full_name || 'Customer',
         last_name: '',
-        email: order.billing_info.email,
-        phone: order.billing_info.phone,
+        email: billing.email || order.billing_email || parsedUser?.email || '',
+        phone: billing.phone || order.billing_phone || '',
       },
     }
 
@@ -115,8 +142,12 @@ export const useOrderStore = defineStore('order', () => {
       }
 
       redirectUrl = result.redirect_url
+      if (!redirectUrl) {
+        throw new Error('Payment redirect URL is missing')
+      }
     } catch (error) {
       console.error('Payment error:', error)
+      throw error
     }
 
     // Create modal container
@@ -140,7 +171,7 @@ export const useOrderStore = defineStore('order', () => {
     <div style="background: white; width: 90%; max-width: 500px; border-radius: 8px; overflow: hidden;">
       <div style="padding: 16px; background: #f8f9fa; border-bottom: 1px solid #dee2e6; display: flex; justify-content: space-between; align-items: center;">
         <h3 style="margin: 0; font-size: 18px;">Complete Payment</h3>
-        <button id="close-modal" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;"><a href="/">&times;</a></button>
+        <button id="close-modal" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">&times;</button>
       </div>
       <iframe
         id="payment-iframe"
@@ -158,14 +189,14 @@ export const useOrderStore = defineStore('order', () => {
 
     // Close button handler
     document.getElementById('close-modal').onclick = () => {
-      closePaymentModal(order.order_id)
+      closePaymentModal(resolvedOrderId)
     }
 
     // Listen for messages from iframe
     window.addEventListener('message', handlePaymentMessage, false)
 
     // Store orderId for later reference
-    modal.dataset.orderId = order.order_id
+    modal.dataset.orderId = resolvedOrderId
   }
 
   const closePaymentModal = (orderId) => {
@@ -227,6 +258,7 @@ export const useOrderStore = defineStore('order', () => {
     placeOrder,
     getMyOrders,
     getOrderById,
+    cancelMyOrder,
     openPaymentModal,
   }
 })

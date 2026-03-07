@@ -48,7 +48,9 @@ class OrderController
                 break;
 
             case 'PUT':
-                if ($action === 'status' && $id && is_numeric($id)) {
+                if ($action === 'cancel' && $id && is_numeric($id)) {
+                    $this->cancelOrder((int)$id, $user_data['id']);
+                } elseif ($action === 'status' && $id && is_numeric($id)) {
                     $this->updateStatus($id);
                 } elseif ($id === 'status' && $action && is_numeric($action)) {
                     $this->updateStatus($action);
@@ -152,6 +154,18 @@ class OrderController
             http_response_code(400);
             echo json_encode(['error' => 'Status required']);
         }
+    }
+
+    private function cancelOrder($order_id, $user_id)
+    {
+        if ($this->order->cancelPendingOrderForUser($order_id, $user_id)) {
+            http_response_code(200);
+            echo json_encode(['message' => 'Order cancelled successfully']);
+            return;
+        }
+
+        http_response_code(400);
+        echo json_encode(['error' => 'Only your pending orders can be cancelled']);
     }
 
     private function getDownloads($user_id)

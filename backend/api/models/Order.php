@@ -157,6 +157,22 @@ class Order
         return $stmt->execute();
     }
 
+    public function cancelPendingOrderForUser($order_id, $user_id)
+    {
+        $query = "UPDATE " . $this->table . "
+                  SET status = 'cancelled', payment_status = 'failed'
+                  WHERE id = :order_id
+                    AND user_id = :user_id
+                    AND status = 'pending'";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':order_id', $order_id);
+        $stmt->bindParam(':user_id', $user_id);
+        $stmt->execute();
+
+        return $stmt->rowCount() > 0;
+    }
+
     public function getDownloads($user_id)
     {
         $query = "SELECT DISTINCT s.*, o.created_at as purchase_date, o.order_number
