@@ -4,8 +4,6 @@ namespace SheetMusic\Controllers;
 
 use SheetMusic\Config\Database;
 use SheetMusic\Models\SheetMusic;
-use SheetMusic\Models\Category;
-use SheetMusic\Models\Instrument;
 use SheetMusic\Middleware\AuthMiddleware;
 
 class SheetController
@@ -149,6 +147,7 @@ class SheetController
             'title' => trim((string) $data['title']),
             'subtitle' => trim((string) ($data['subtitle'] ?? '')),
             'composer' => trim((string) $data['composer']),
+            'arranger' => trim((string) ($data['arranger'] ?? '')),
             'description' => trim((string) ($data['description'] ?? '')),
             'instrument_id' => (int) $data['instrument_id'],
             'list_instruments' => isset($data['list_instruments']) ? json_encode($data['list_instruments']) : null,
@@ -204,11 +203,11 @@ class SheetController
     private function addSheetMusic($data)
     {
         $query = "INSERT INTO sheet_music (
-            title, subtitle, composer, description, instrument_id, list_instruments, category_id,
+            title, subtitle, composer, arranger, description, instrument_id, list_instruments, category_id,
             difficulty, price, pages, format, pdf_name, file_path, cover_image,
             is_featured, is_premium, rating, reviews_count, downloads_count, views_count, created_by
         ) VALUES (
-            :title, :subtitle, :composer, :description, :instrument_id, :list_instruments, :category_id,
+            :title, :subtitle, :composer, :arranger, :description, :instrument_id, :list_instruments, :category_id,
             :difficulty, :price, :pages, :format, :pdf_name, :file_path, :cover_image,
             :is_featured, :is_premium, :rating, :reviews_count, :downloads_count, :views_count, :created_by
         )";
@@ -219,6 +218,7 @@ class SheetController
             ':title' => $data['title'],
             ':subtitle' => $data['subtitle'],
             ':composer' => $data['composer'],
+            ':arranger' => $data['arranger'],
             ':description' => $data['description'],
             ':instrument_id' => $data['instrument_id'],
             ':list_instruments' => $data['list_instruments'],

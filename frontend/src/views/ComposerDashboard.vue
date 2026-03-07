@@ -16,31 +16,53 @@
       <div class="card-body p-4 p-md-5">
         <form class="row g-3" @submit.prevent="handleSubmit" novalidate>
           <div class="col-md-6">
-            <label for="title" class="form-label">Title</label>
+            <label for="title" class="form-label">Title*</label>
             <input
               id="title"
               v-model.trim="form.title"
               type="text"
               class="form-control"
-              placeholder="Moonlight Sonata, Op. 27 No. 2"
+              placeholder="Cik Cik Periuk"
               required
             />
           </div>
 
           <div class="col-md-6">
-            <label for="composer" class="form-label">Composer</label>
+            <label for="subtitle" class="form-label">Subtitle</label>
+            <input
+              id="subtitle"
+              v-model.trim="form.subtitle"
+              type="text"
+              class="form-control"
+              placeholder="Kalimantan Barat Traditional Song"
+            />
+          </div>
+
+          <div class="col-md-6">
+            <label for="composer" class="form-label">Composer*</label>
             <input
               id="composer"
               v-model.trim="form.composer"
               type="text"
               class="form-control"
-              placeholder="Ludwig van Beethoven"
+              placeholder="N.N (Traditional)"
               required
             />
           </div>
 
+          <div class="col-md-6">
+            <label for="arranger" class="form-label">Arranger</label>
+            <input
+              id="arranger"
+              v-model.trim="form.arranger"
+              type="text"
+              class="form-control"
+              placeholder="Arranged by Myself"
+            />
+          </div>
+
           <div class="col-md-4">
-            <label for="instrument" class="form-label">Instrument</label>
+            <label for="instrument" class="form-label">Instrument*</label>
             <select id="instrument" v-model="form.instrument" class="form-select" required>
               <option disabled value="">Select instrument</option>
               <option v-for="instrument in instruments" :key="instrument.id" :value="instrument.id">
@@ -50,7 +72,7 @@
           </div>
 
           <div class="col-md-4">
-            <label for="difficulty" class="form-label">Difficulty</label>
+            <label for="difficulty" class="form-label">Difficulty*</label>
             <select id="difficulty" v-model="form.difficulty" class="form-select" required>
               <option disabled value="">Select level</option>
               <option value="Beginner">Beginner</option>
@@ -61,7 +83,7 @@
           </div>
 
           <div class="col-md-4">
-            <label for="format" class="form-label">Format</label>
+            <label for="format" class="form-label">Format*</label>
             <select id="format" v-model="form.format" class="form-select" required>
               <option value="PDF">PDF</option>
               <option value="PDF + Audio">PDF + Audio</option>
@@ -69,8 +91,18 @@
             </select>
           </div>
 
-          <div class="col-md-6">
-            <label for="price" class="form-label">Price (IDR)</label>
+          <div class="col-md-4">
+            <label for="category" class="form-label">Categories*</label>
+            <select id="category" v-model="form.category" class="form-select" required>
+              <option disabled value="">Select Categories</option>
+              <option v-for="category in categories" :key="category.id" :value="category.id">
+                {{ category.name }}
+              </option>
+            </select>
+          </div>
+
+          <div class="col-md-4">
+            <label for="price" class="form-label">Price (IDR)*</label>
             <input
               id="price"
               v-model="priceInput"
@@ -82,8 +114,8 @@
             />
           </div>
 
-          <div class="col-md-6">
-            <label for="pages" class="form-label">Pages</label>
+          <div class="col-md-4">
+            <label for="pages" class="form-label">Pages*</label>
             <input
               id="pages"
               v-model.number="form.pages"
@@ -97,7 +129,10 @@
           </div>
 
           <div class="col-12">
-            <label for="sheetFile" class="form-label">Sheet PDF File</label>
+            <label for="sheetFile" class="form-label">Sheet PDF File*</label>
+            <div class="alert alert-warning py-2 px-3 mb-2" role="alert">
+              PDF file can only be uploaded once. If you want to change it, please contact admin.
+            </div>
             <input
               id="sheetFile"
               type="file"
@@ -134,7 +169,7 @@
           </div>
 
           <div class="col-12">
-            <label for="coverImage" class="form-label">Cover Image URL</label>
+            <label for="coverImage" class="form-label">Cover Image URL*</label>
             <input
               id="coverImage"
               v-model.trim="form.coverImage"
@@ -146,7 +181,7 @@
           </div>
 
           <div class="col-12">
-            <label for="description" class="form-label">Description</label>
+            <label for="description" class="form-label">Description*</label>
             <textarea
               id="description"
               v-model.trim="form.description"
@@ -314,20 +349,29 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useSheetMusicStore } from '../stores/sheetMusic'
 import { useInstruments } from '../stores/instrument'
+import { useCategory } from '@/stores/category'
 import { formatPriceIDR } from '@/utils/priceUtils'
 
 const sheetStore = useSheetMusicStore()
 const instrumentStore = useInstruments()
+const categoryStore = useCategory()
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
 
 const instruments = computed(() => {
   return instrumentStore.instruments || []
 })
 
+const categories = computed(() => {
+  return categoryStore.categories || []
+})
+
 const form = reactive({
   title: '',
+  subtitle: '',
   composer: '',
+  arranger: '',
   instrument: '',
+  category: '',
   difficulty: '',
   format: 'PDF',
   price: null,
@@ -458,11 +502,14 @@ function goToPage(page) {
 
 function resetForm() {
   form.title = ''
+  form.subtitle = ''
   form.composer = ''
+  form.arranger = ''
   form.instrument = ''
   form.difficulty = ''
   form.format = 'PDF'
   form.price = null
+  form.category = ''
   form.pages = null
   form.coverImage = ''
   form.description = ''
@@ -530,7 +577,10 @@ function resolveInstrumentId(sheet) {
   const normalizedName = String(rawInstrument).trim().toLowerCase()
   if (!normalizedName) return ''
   const match = instruments.value.find(
-    (instrument) => String(instrument.name || '').trim().toLowerCase() === normalizedName,
+    (instrument) =>
+      String(instrument.name || '')
+        .trim()
+        .toLowerCase() === normalizedName,
   )
   return match ? Number(match.id) : ''
 }
@@ -539,7 +589,10 @@ function startEdit(sheet) {
   window.scrollTo({ top: 0, behavior: 'smooth' })
   editingSheetId.value = Number(sheet.id)
   form.title = sheet.title || ''
+  form.subtitle = sheet.subtitle || ''
   form.composer = sheet.composer || ''
+  form.arranger = sheet.arranger || ''
+  form.category = sheet.category_id || ''
   form.instrument = resolveInstrumentId(sheet)
   form.difficulty = sheet.difficulty || ''
   form.format = sheet.format || 'PDF'
@@ -587,6 +640,9 @@ async function handleSubmit() {
     !form.composer ||
     !form.instrument ||
     !form.difficulty ||
+    !form.price ||
+    !form.pages ||
+    !form.category ||
     !form.format ||
     !form.coverImage ||
     !form.description
@@ -636,6 +692,7 @@ onMounted(async () => {
     await Promise.all([
       sheetStore.fetchSheetBySearch(),
       instrumentStore.fetchInstruments(),
+      categoryStore.fetchCategories(),
       fetchOwnedPurchases(),
     ])
   } finally {

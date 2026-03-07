@@ -22,3 +22,5 @@ CREATE TABLE IF NOT EXISTS favorites (
     FOREIGN KEY (sheet_id) REFERENCES sheet_music(id) ON DELETE CASCADE,
     UNIQUE KEY unique_favorite_user_sheet (user_id, sheet_id)
 );
+---------------------------------------------------------------------
+ALTER TABLE sheet_music ADD COLUMN arranger VARCHAR(255) NULL AFTER composer;

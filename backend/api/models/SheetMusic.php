@@ -164,7 +164,9 @@ class SheetMusic
     {
         $query = "UPDATE " . $this->table . "
                   SET title = :title,
+                    subtitle = :subtitle,
                       composer = :composer,
+                      arranger = :arranger,
                       description = :description,
                       instrument_id = :instrument_id,
                       category_id = :category_id,
@@ -180,7 +182,9 @@ class SheetMusic
         $stmt = $this->conn->prepare($query);
 
         $stmt->bindParam(':title', $data['title']);
+        $stmt->bindParam(':subtitle', $data['subtitle']);
         $stmt->bindParam(':composer', $data['composer']);
+        $stmt->bindParam(':arranger', $data['arranger']);
         $stmt->bindParam(':description', $data['description']);
         $stmt->bindParam(':instrument_id', $data['instrument_id']);
         $stmt->bindParam(':category_id', $data['category_id']);

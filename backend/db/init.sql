@@ -129,17 +129,6 @@ CREATE TABLE order_items (
     FOREIGN KEY (sheet_id) REFERENCES sheet_music(id) ON DELETE SET NULL
 );
 
--- Wishlist table
-CREATE TABLE wishlist (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT,
-    sheet_id INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (sheet_id) REFERENCES sheet_music(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_user_sheet (user_id, sheet_id)
-);
-
 -- Favorites table
 CREATE TABLE favorites (
     id INT PRIMARY KEY AUTO_INCREMENT,

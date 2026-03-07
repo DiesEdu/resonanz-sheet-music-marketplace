@@ -14,10 +14,12 @@ export const useSheetMusicStore = defineStore('sheetMusic', () => {
   function mapFormToApiPayload(payload) {
     return {
       title: payload.title,
+      subtitle: payload.subtitle,
       composer: payload.composer,
+      arranger: payload.arranger,
       description: payload.description,
       instrument_id: payload.instrument,
-      category_id: payload.category_id || DEFAULT_CATEGORY_ID,
+      category_id: Number(payload.category) || DEFAULT_CATEGORY_ID,
       difficulty: payload.difficulty,
       price: Number(payload.price),
       pages: Number(payload.pages),
