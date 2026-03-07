@@ -91,10 +91,6 @@ class OrderController
             // Clear cart
             $this->cart->clearCart($cart['id']);
 
-            // Process payment (integrate with payment gateway here)
-            // For now, just mark as paid
-            $this->order->updatePaymentStatus($order_id, 'paid');
-
             // Fetch the created order to get order_number
             $order_data = $this->order->getOrderDetails($order_id);
 

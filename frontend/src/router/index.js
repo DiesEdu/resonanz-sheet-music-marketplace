@@ -40,6 +40,16 @@ const router = createRouter({
       component: () => import('../views/VerifiedView.vue'),
     },
     {
+      path: '/successful-payment',
+      name: 'successful-payment',
+      component: () => import('../views/SuccessfulPaymentView.vue'),
+    },
+    {
+      path: '/error-payment',
+      name: 'error-payment',
+      component: () => import('../views/ErrorPaymentView.vue'),
+    },
+    {
       path: '/profile',
       name: 'profile',
       component: () => import('../views/ProfileView.vue'),
