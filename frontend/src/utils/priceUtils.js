@@ -11,3 +11,8 @@ export function formatPriceIDR(price) {
     return `Rp${numPrice.toFixed(2)}`
   }
 }
+
+export function formatPriceIDRWithCommas(price) {
+  const numPrice = Number(price)
+  return `Rp${numPrice.toLocaleString('id-ID')}`
+}
