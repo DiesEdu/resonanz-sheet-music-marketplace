@@ -80,7 +80,9 @@
                 <strong>Total:</strong>
                 <strong class="text-primary">{{ formatPriceIDR(cartStore.cartSubtotal) }}</strong>
               </div>
-              <div v-if="checkoutError" class="alert alert-danger py-2 mb-3">{{ checkoutError }}</div>
+              <div v-if="checkoutError" class="alert alert-danger py-2 mb-3">
+                {{ checkoutError }}
+              </div>
               <div v-if="checkoutSuccess" class="alert alert-success py-2 mb-3">
                 {{ checkoutSuccess }}
               </div>
@@ -190,6 +192,7 @@ async function checkout() {
   isCheckingOut.value = true
   try {
     const result = await orderStore.placeOrder()
+    orderStore.openPaymentModal(result)
 
     checkoutSuccess.value = result?.message || 'Checkout successful.'
     await cartStore.fetchCart()

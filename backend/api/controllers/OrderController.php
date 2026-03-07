@@ -95,10 +95,16 @@ class OrderController
             // For now, just mark as paid
             $this->order->updatePaymentStatus($order_id, 'paid');
 
+            // Fetch the created order to get order_number
+            $order_data = $this->order->getOrderDetails($order_id);
+
             http_response_code(201);
             echo json_encode([
                 'message' => 'Order created successfully',
-                'order_id' => $order_id
+                'order_id' => $order_id,
+                'order_number' => $order_data['order_number'] ?? '',
+                'total_amount' => $order_data['total_amount'] ?? 0,
+                'billing_info' => $billing_info
             ]);
 
             // Send confirmation email
