@@ -73,12 +73,11 @@
             <label for="price" class="form-label">Price (IDR)</label>
             <input
               id="price"
-              v-model.number="form.price"
-              type="number"
-              min="0"
-              step="0.01"
+              v-model="priceInput"
+              type="text"
+              inputmode="numeric"
               class="form-control"
-              placeholder="12.99"
+              placeholder="500.000"
               required
             />
           </div>
@@ -111,6 +110,7 @@
             <small class="text-muted d-block mt-1">
               {{
                 selectedPdfName ||
+                existingPdfName ||
                 (isEditMode
                   ? 'PDF replacement is not available in edit mode yet.'
                   : 'Upload a PDF file.')
@@ -343,11 +343,24 @@ const isLoadingPurchases = ref(true)
 const purchaseErrorMessage = ref('')
 const selectedPdfFile = ref(null)
 const selectedPdfName = ref('')
+const existingPdfName = ref('')
 const pdfPreviewUrl = ref('')
 const editingSheetId = ref(null)
 const currentPage = ref(1)
 const pageSize = 5
 const purchasedSheets = ref([])
+const priceInput = computed({
+  get() {
+    if (form.price === null || form.price === '') return ''
+    const numericValue = Number(form.price)
+    if (!Number.isFinite(numericValue)) return ''
+    return numericValue.toLocaleString('id-ID')
+  },
+  set(value) {
+    const digitsOnly = String(value || '').replace(/\D/g, '')
+    form.price = digitsOnly ? Number(digitsOnly) : null
+  },
+})
 
 function setPdfPreviewUrl(nextUrl = '') {
   if (pdfPreviewUrl.value && pdfPreviewUrl.value.startsWith('blob:')) {
@@ -455,6 +468,7 @@ function resetForm() {
   form.description = ''
   selectedPdfFile.value = null
   selectedPdfName.value = ''
+  existingPdfName.value = ''
   setPdfPreviewUrl('')
 }
 
@@ -478,6 +492,7 @@ function handlePdfFileChange(event) {
   if (!file) {
     selectedPdfFile.value = null
     selectedPdfName.value = ''
+    existingPdfName.value = ''
     setPdfPreviewUrl('')
     return
   }
@@ -486,6 +501,7 @@ function handlePdfFileChange(event) {
     errorMessage.value = 'Please upload a PDF file only.'
     selectedPdfFile.value = null
     selectedPdfName.value = ''
+    existingPdfName.value = ''
     setPdfPreviewUrl('')
     event.target.value = ''
     return
@@ -493,8 +509,30 @@ function handlePdfFileChange(event) {
 
   selectedPdfFile.value = file
   selectedPdfName.value = file.name
+  existingPdfName.value = ''
   errorMessage.value = ''
   setPdfPreviewUrl(URL.createObjectURL(file))
+}
+
+function resolveInstrumentId(sheet) {
+  const rawId = sheet.instrument_id ?? sheet.instrumentId
+  const numericId = Number(rawId)
+  if (Number.isFinite(numericId) && numericId > 0) {
+    return numericId
+  }
+
+  const rawInstrument = sheet.instrument ?? sheet.instrument_name ?? ''
+  const numericInstrument = Number(rawInstrument)
+  if (Number.isFinite(numericInstrument) && numericInstrument > 0) {
+    return numericInstrument
+  }
+
+  const normalizedName = String(rawInstrument).trim().toLowerCase()
+  if (!normalizedName) return ''
+  const match = instruments.value.find(
+    (instrument) => String(instrument.name || '').trim().toLowerCase() === normalizedName,
+  )
+  return match ? Number(match.id) : ''
 }
 
 function startEdit(sheet) {
@@ -502,7 +540,7 @@ function startEdit(sheet) {
   editingSheetId.value = Number(sheet.id)
   form.title = sheet.title || ''
   form.composer = sheet.composer || ''
-  form.instrument = sheet.instrument || sheet.instrument_name || ''
+  form.instrument = resolveInstrumentId(sheet)
   form.difficulty = sheet.difficulty || ''
   form.format = sheet.format || 'PDF'
   form.price = Number(sheet.price) || 0
@@ -511,6 +549,11 @@ function startEdit(sheet) {
   form.description = sheet.description || ''
   selectedPdfFile.value = null
   selectedPdfName.value = ''
+  existingPdfName.value =
+    sheet.pdf_name ||
+    sheet.file_name ||
+    (sheet.file_path ? sheet.file_path.split(/[\\/]/).pop() : '') ||
+    ''
   setPdfPreviewUrl(buildAssetUrl(sheet.file_path || ''))
   errorMessage.value = ''
   successMessage.value = ''
