@@ -62,6 +62,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/my-favorite',
+      name: 'my-favorite',
+      component: () => import('../views/MyFavorite.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/composer/hub',
       name: 'composer-hub',
       component: () => import('../views/ComposerDashboard.vue'),

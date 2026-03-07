@@ -33,19 +33,48 @@
                 }}</span>
               </router-link>
             </li>
-            <li v-if="isLoggedIn" class="nav-item d-flex align-items-center">
-              <router-link class="nav-link auth-user-name" to="/profile" @click="handleNavItemClick">
-                <i class="bi bi-person-circle me-1"></i>{{ displayName }}
-              </router-link>
-            </li>
-            <li v-if="isLoggedIn" class="nav-item d-flex align-items-center">
+            <li v-if="isLoggedIn" class="nav-item dropdown d-flex align-items-center user-menu">
               <button
-                class="nav-link btn btn-link text-decoration-none"
+                class="nav-link btn btn-link dropdown-toggle text-decoration-none auth-user-name"
                 type="button"
-                @click="logout"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
               >
-                <i class="bi bi-box-arrow-right"></i> Logout
+                <i class="bi bi-person-circle me-1"></i>{{ displayName }}
               </button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                  <router-link class="dropdown-item" to="/profile" @click="handleNavItemClick">
+                    <i class="bi bi-person me-2"></i>Profile
+                  </router-link>
+                </li>
+                <li>
+                  <router-link class="dropdown-item" to="/my-favorite" @click="handleNavItemClick">
+                    <i class="bi bi-heart me-2"></i>My Favorite
+                  </router-link>
+                </li>
+                <li v-if="isLoggedIn">
+                  <router-link class="dropdown-item" to="/my-orders" @click="handleNavItemClick">
+                    <i class="bi bi-bag me-2"></i>My Orders
+                  </router-link>
+                </li>
+                <li>
+                  <router-link
+                    class="dropdown-item"
+                    to="/admin/users"
+                    v-if="isAdmin"
+                    @click="handleNavItemClick"
+                  >
+                    <i class="bi bi-people me-2"></i>Users
+                  </router-link>
+                </li>
+                <li><hr class="dropdown-divider" /></li>
+                <li>
+                  <button class="dropdown-item" type="button" @click="logout">
+                    <i class="bi bi-box-arrow-right me-2"></i>Logout
+                  </button>
+                </li>
+              </ul>
             </li>
           </ul>
         </div>
@@ -239,15 +268,8 @@ const displayName = computed(() => {
 const navItems = computed(() => [
   { name: 'Home', path: '/', icon: 'bi bi-house-door' },
   { name: 'Marketplace', path: '/marketplace', icon: 'bi bi-shop' },
-  ...(isLoggedIn.value ? [{ name: 'My Orders', path: '/my-orders', icon: 'bi bi-receipt' }] : []),
-  ...(isComposer.value
+  ...(isComposer.value || isAdmin.value
     ? [{ name: 'Composer Hub', path: '/composer/hub', icon: 'bi bi-file-earmark-plus' }]
-    : []),
-  ...(isAdmin.value
-    ? [
-        { name: 'Composer Hub', path: '/composer/hub', icon: 'bi bi-file-earmark-plus' },
-        { name: 'Users', path: '/admin/users', icon: 'bi bi-people' },
-      ]
     : []),
   { name: 'Cart', path: '/cart', icon: 'bi bi-cart' },
   ...(isLoggedIn.value
@@ -340,5 +362,9 @@ const socialMediaItems = computed(() => {
 
 .auth-user-name:hover {
   color: #f5e6cd;
+}
+
+.user-menu .dropdown-menu {
+  border-radius: 10px;
 }
 </style>
