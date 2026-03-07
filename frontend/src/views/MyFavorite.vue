@@ -21,7 +21,9 @@
 
           <div v-else class="row g-3">
             <div v-for="sheet in favorites" :key="sheet.id" class="col-12">
-              <div class="favorite-item border rounded-3 p-3 d-flex gap-3 align-items-start">
+              <div
+                class="favorite-item border rounded-3 p-3 d-flex gap-3 align-items-start overflow-auto"
+              >
                 <img
                   :src="sheet.cover_image || fallbackCover"
                   :alt="sheet.title"
@@ -42,6 +44,19 @@
                   <div class="fw-semibold mb-2">{{ formatPriceIDR(Number(sheet.price) || 0) }}</div>
                   <button
                     type="button"
+                    class="btn btn-sm btn-outline-primary me-2"
+                    :disabled="addingId === Number(sheet.id)"
+                    @click="addToCart(sheet, $event)"
+                  >
+                    <span
+                      v-if="addingId === Number(sheet.id)"
+                      class="spinner-border spinner-border-sm"
+                      role="status"
+                    ></span>
+                    <i v-else class="bi bi-cart-plus me-1"></i>
+                  </button>
+                  <button
+                    type="button"
                     class="btn btn-sm btn-outline-danger"
                     :disabled="removingId === Number(sheet.id)"
                     @click="removeFavorite(Number(sheet.id))"
@@ -51,7 +66,7 @@
                       class="spinner-border spinner-border-sm me-2"
                       role="status"
                     ></span>
-                    Remove
+                    <i class="bi bi-trash"></i>
                   </button>
                 </div>
               </div>
@@ -67,18 +82,21 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFavoritesStore } from '@/stores/favorites'
+import { useCartStore } from '@/stores/cart'
 import { formatPriceIDR } from '@/utils/priceUtils'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
 const fallbackCover = 'https://via.placeholder.com/96x128?text=No+Cover'
 
 const router = useRouter()
+const cartStore = useCartStore()
 const favoritesStore = useFavoritesStore()
 
 const isLoading = ref(false)
 const errorMessage = ref('')
 const favorites = ref([])
 const removingId = ref(null)
+const addingId = ref(null)
 
 function requireToken() {
   const token = localStorage.getItem('auth_token')
@@ -144,6 +162,39 @@ async function removeFavorite(sheetId) {
     errorMessage.value = 'Network error while removing favorite.'
   } finally {
     removingId.value = null
+  }
+}
+
+async function addToCart(sheet, event) {
+  const authUser = localStorage.getItem('auth_user')
+  if (!authUser) {
+    router.push('/login')
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    })
+    return
+  }
+
+  const sheetId = Number(sheet?.id)
+  if (!Number.isFinite(sheetId) || sheetId <= 0) {
+    errorMessage.value = 'Invalid sheet music data.'
+    return
+  }
+
+  errorMessage.value = ''
+  addingId.value = sheetId
+  const isAdded = await cartStore.addToCart(sheet)
+  if (!isAdded) {
+    errorMessage.value = 'Failed to add this item to your cart.'
+  }
+  addingId.value = null
+
+  const button = event?.currentTarget
+  if (button) {
+    button.classList.add('btn-clicked')
+    setTimeout(() => {
+      button.classList.remove('btn-clicked')
+    }, 300)
   }
 }
 

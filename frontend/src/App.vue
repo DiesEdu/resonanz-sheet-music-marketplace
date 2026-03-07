@@ -365,6 +365,30 @@ const socialMediaItems = computed(() => {
 }
 
 .user-menu .dropdown-menu {
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+  transform-origin: top right;
+}
+
+.user-menu .dropdown-menu.show {
+  animation: dropdownReveal 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes dropdownReveal {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .user-menu .dropdown-menu.show {
+    animation: none;
+  }
 }
 </style>
