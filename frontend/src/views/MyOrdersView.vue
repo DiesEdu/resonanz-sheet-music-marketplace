@@ -6,7 +6,9 @@
           <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
             <div>
               <h1 class="h3 mb-1">My Orders</h1>
-              <p class="text-muted mb-0">Your complete order history and purchased sheet music items.</p>
+              <p class="text-muted mb-0">
+                Your complete order history and purchased sheet music items.
+              </p>
             </div>
             <button
               type="button"
@@ -38,7 +40,7 @@
           <div v-else class="d-grid gap-3">
             <article
               v-for="order in orders"
-              :key="order.id"
+              :key="order._orderId || order.order_number"
               class="border rounded-4 p-3 p-md-4 order-card"
             >
               <div class="d-flex flex-wrap justify-content-between gap-3">
@@ -49,7 +51,9 @@
                 <div class="text-md-end">
                   <p class="mb-1 fw-semibold">{{ formatCurrency(order.total_amount) }}</p>
                   <div class="d-flex gap-2 justify-content-md-end">
-                    <span class="badge text-bg-light border">{{ normalizeStatus(order.status) }}</span>
+                    <span class="badge text-bg-light border">{{
+                      normalizeStatus(order.status)
+                    }}</span>
                     <span :class="['badge', paymentStatusClass(order.payment_status)]">
                       {{ normalizeStatus(order.payment_status) }}
                     </span>
@@ -61,30 +65,28 @@
                 <button
                   type="button"
                   class="btn btn-sm btn-outline-primary"
-                  :disabled="orderDetailsState[order.id]?.loading"
-                  @click="toggleOrderItems(order.id)"
+                  :disabled="!order._orderId || orderDetailsState[order._orderId]?.loading"
+                  @click="toggleOrderItems(order._orderId)"
                 >
                   <span
-                    v-if="orderDetailsState[order.id]?.loading"
+                    v-if="orderDetailsState[order._orderId]?.loading"
                     class="spinner-border spinner-border-sm me-2"
                     role="status"
                   ></span>
-                  {{
-                    orderDetailsState[order.id]?.open ? 'Hide Items' : 'View Items'
-                  }}
+                  {{ orderDetailsState[order._orderId]?.open ? 'Hide Items' : 'View Items' }}
                 </button>
               </div>
 
-              <div v-if="orderDetailsState[order.id]?.open" class="mt-3">
-                <p v-if="orderDetailsState[order.id]?.error" class="text-danger mb-0 small">
-                  {{ orderDetailsState[order.id]?.error }}
+              <div v-if="orderDetailsState[order._orderId]?.open" class="mt-3">
+                <p v-if="orderDetailsState[order._orderId]?.error" class="text-danger mb-0 small">
+                  {{ orderDetailsState[order._orderId]?.error }}
                 </p>
                 <ul
-                  v-else-if="orderDetailsState[order.id]?.items?.length"
+                  v-else-if="orderDetailsState[order._orderId]?.items?.length"
                   class="list-group list-group-flush rounded-3 overflow-hidden border"
                 >
                   <li
-                    v-for="item in orderDetailsState[order.id].items"
+                    v-for="item in orderDetailsState[order._orderId].items"
                     :key="item.id"
                     class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2"
                   >
@@ -110,9 +112,10 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { getMyOrders, getOrderById } from '../../api'
+import { useOrderStore } from '@/stores/order'
 
 const router = useRouter()
+const orderStore = useOrderStore()
 const orders = ref([])
 const isLoading = ref(false)
 const loadError = ref('')
@@ -166,6 +169,14 @@ function formatCurrency(amount) {
   }).format(numericAmount)
 }
 
+function resolveOrderId(order) {
+  const rawId = order?.id ?? order?.order_id ?? order?.orderId ?? null
+  if (rawId === null || rawId === undefined || rawId === '') return null
+
+  const numeric = Number(rawId)
+  return Number.isInteger(numeric) && numeric > 0 ? numeric : null
+}
+
 function ensureDetailsState(orderId) {
   if (!orderDetailsState.value[orderId]) {
     orderDetailsState.value[orderId] = {
@@ -181,8 +192,11 @@ async function loadOrders() {
   isLoading.value = true
   loadError.value = ''
   try {
-    const payload = await getMyOrders()
-    orders.value = payload
+    const payload = await orderStore.getMyOrders()
+    orders.value = (Array.isArray(payload) ? payload : []).map((order) => ({
+      ...order,
+      _orderId: resolveOrderId(order),
+    }))
   } catch (error) {
     const message = error?.message || 'Unable to load order history.'
     if (handleUnauthorized(message)) return
@@ -193,6 +207,10 @@ async function loadOrders() {
 }
 
 async function toggleOrderItems(orderId) {
+  if (!orderId) {
+    return
+  }
+
   ensureDetailsState(orderId)
   const state = orderDetailsState.value[orderId]
 
@@ -209,7 +227,7 @@ async function toggleOrderItems(orderId) {
   state.loading = true
   state.error = ''
   try {
-    const orderDetail = await getOrderById(orderId)
+    const orderDetail = await orderStore.getOrderById(orderId)
     state.items = Array.isArray(orderDetail?.items) ? orderDetail.items : []
   } catch (error) {
     const message = error?.message || 'Unable to load order items.'

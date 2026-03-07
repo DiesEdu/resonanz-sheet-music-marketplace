@@ -120,8 +120,9 @@ class OrderController
     private function getOrder($order_id, $user_id)
     {
         $order = $this->order->getOrderDetails($order_id);
+        $orderUserId = $order['user_id'] ?? null;
 
-        if ($order && ($order['user_id'] == $user_id || $this->isAdmin())) {
+        if ($order && ($orderUserId == $user_id || $this->isAdmin())) {
             http_response_code(200);
             echo json_encode($order);
         } else {

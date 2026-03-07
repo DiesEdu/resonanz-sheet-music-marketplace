@@ -111,6 +111,7 @@ class Order
             if (!$order) {
                 $order = [
                     'id' => $row['id'],
+                    'user_id' => $row['user_id'],
                     'order_number' => $row['order_number'],
                     'total_amount' => $row['total_amount'],
                     'status' => $row['status'],

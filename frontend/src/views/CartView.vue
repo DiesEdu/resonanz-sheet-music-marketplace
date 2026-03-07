@@ -101,9 +101,11 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { formatPriceIDR } from '@/utils/priceUtils'
 import { useCartStore } from '../stores/cart'
+import { useOrderStore } from '../stores/order'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
 const cartStore = useCartStore()
+const orderStore = useOrderStore()
 const router = useRouter()
 const isCheckingOut = ref(false)
 const checkoutError = ref('')
@@ -116,19 +118,6 @@ function removeItem(id) {
 async function changeQuantity(item, delta) {
   const nextQuantity = Math.max(1, Number(item.quantity) + delta)
   await cartStore.updateQuantity(item.id, nextQuantity)
-}
-
-function getAuthHeaders() {
-  const token = localStorage.getItem('auth_token')
-  const headers = {
-    'Content-Type': 'application/json',
-  }
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`
-  }
-
-  return headers
 }
 
 async function ensureEmailVerifiedForCheckout(token) {
@@ -200,17 +189,7 @@ async function checkout() {
 
   isCheckingOut.value = true
   try {
-    const response = await fetch(`${API_BASE_URL}/orders/checkout`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      credentials: 'include',
-      body: JSON.stringify({}),
-    })
-    const result = await response.json().catch(() => ({}))
-
-    if (!response.ok) {
-      throw new Error(result?.error || `Checkout failed (${response.status})`)
-    }
+    const result = await orderStore.placeOrder()
 
     checkoutSuccess.value = result?.message || 'Checkout successful.'
     await cartStore.fetchCart()
