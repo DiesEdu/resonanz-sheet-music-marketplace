@@ -8,7 +8,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top animate-slide-down">
       <div class="container">
         <router-link class="navbar-brand" to="/">
-          <i class="bi bi-music-note-beamed"></i> Resonanz Marketplace
+          <i class="bi bi-music-note-beamed"></i> TRMS Marketplace
         </router-link>
         <button
           class="navbar-toggler"

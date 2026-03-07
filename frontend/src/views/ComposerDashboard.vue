@@ -202,19 +202,33 @@
 
           <div class="col-12 d-flex gap-2 pt-2">
             <button type="submit" class="btn btn-primary">
-              <i :class="isEditMode ? 'bi bi-save me-1' : 'bi bi-plus-circle me-1'"></i>
-              {{ isEditMode ? 'Update Sheet Music' : 'Publish Sheet Music' }}
+              <i
+                :class="isEditMode ? 'bi bi-save me-sm-1' : 'bi bi-plus-circle me-sm-1'"
+                aria-hidden="true"
+              ></i>
+              <span class="d-none d-sm-inline">
+                {{ isEditMode ? 'Update Sheet Music' : 'Publish Sheet Music' }}
+              </span>
             </button>
             <button
               v-if="isEditMode"
               type="button"
               class="btn btn-outline-secondary"
               @click="cancelEdit"
+              aria-label="Cancel Edit"
+              title="Cancel Edit"
             >
-              Cancel Edit
+              <i class="bi bi-x-circle me-sm-1" aria-hidden="true"></i>
+              <span class="d-none d-sm-inline">Cancel Edit</span>
             </button>
-            <router-link to="/marketplace" class="btn btn-outline-primary">
-              Back to Marketplace
+            <router-link
+              to="/marketplace"
+              class="btn btn-outline-primary"
+              aria-label="Back to Marketplace"
+              title="Back to Marketplace"
+            >
+              <i class="bi bi-arrow-left me-sm-1" aria-hidden="true"></i>
+              <span class="d-none d-sm-inline">Back to Marketplace</span>
             </router-link>
           </div>
         </form>
