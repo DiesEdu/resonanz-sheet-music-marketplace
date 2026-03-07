@@ -34,6 +34,7 @@
           class="btn btn-icon btn-favorite"
           @click="toggleFavorite"
           :class="{ active: isFavorite }"
+          :disabled="isTogglingFavorite"
         >
           <i class="bi" :class="isFavorite ? 'bi-heart-fill' : 'bi-heart'"></i>
         </button>
@@ -86,9 +87,10 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../stores/cart'
+import { useFavoritesStore } from '../stores/favorites'
 import { formatPriceIDR } from '../utils/priceUtils'
 
 const props = defineProps({
@@ -99,9 +101,17 @@ const props = defineProps({
 })
 
 const cartStore = useCartStore()
+const favoritesStore = useFavoritesStore()
 const router = useRouter()
-const isFavorite = ref(false)
 const showAddedAnimation = ref(false)
+const isTogglingFavorite = ref(false)
+const isFavorite = computed(() => favoritesStore.isFavorite(props.sheet?.id))
+
+onMounted(async () => {
+  const authToken = localStorage.getItem('auth_token')
+  if (!authToken) return
+  await favoritesStore.fetchFavorites()
+})
 
 function handleSheetClick() {
   requestAnimationFrame(() => {
@@ -137,9 +147,25 @@ function addToCart(event) {
   }, 300)
 }
 
-function toggleFavorite(event) {
+async function toggleFavorite(event) {
   event.preventDefault()
-  isFavorite.value = !isFavorite.value
+  const authUser = localStorage.getItem('auth_user')
+  if (!authUser) {
+    router.push('/login')
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    })
+    return
+  }
+
+  if (isTogglingFavorite.value) return
+
+  isTogglingFavorite.value = true
+  try {
+    await favoritesStore.toggleFavorite(props.sheet?.id)
+  } finally {
+    isTogglingFavorite.value = false
+  }
 }
 </script>
 

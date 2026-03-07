@@ -140,6 +140,17 @@ CREATE TABLE wishlist (
     UNIQUE KEY unique_user_sheet (user_id, sheet_id)
 );
 
+-- Favorites table
+CREATE TABLE favorites (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    sheet_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (sheet_id) REFERENCES sheet_music(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_favorite_user_sheet (user_id, sheet_id)
+);
+
 -- Insert sample data
 INSERT INTO instruments (name, slug, icon, description) VALUES
 ('Piano', 'piano', 'bi-piano', 'Keyboard instruments'),

@@ -124,6 +124,12 @@ try {
             $controller->handleRequest($_SERVER['REQUEST_METHOD'], $id);
             break;
 
+        case 'favorites':
+            require_once __DIR__ . '/api/controllers/FavoriteController.php';
+            $controller = new SheetMusic\Controllers\FavoriteController();
+            $controller->handleRequest($_SERVER['REQUEST_METHOD'], $id, $action);
+            break;
+
         case 'uploads':
             // Serve uploaded files
             $relativePath = implode('/', array_slice($segments, 1));
