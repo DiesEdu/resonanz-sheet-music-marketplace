@@ -137,6 +137,17 @@
       </div>
     </div>
 
+    <transition name="cancel-success-toast">
+      <div
+        v-if="cancelSuccessMessage"
+        class="cancel-success-toast alert alert-success shadow-sm mb-0"
+        role="status"
+        aria-live="polite"
+      >
+        {{ cancelSuccessMessage }}
+      </div>
+    </transition>
+
     <transition name="confirm-backdrop">
       <div
         v-if="showCancelConfirm"
@@ -175,7 +186,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useOrderStore } from '@/stores/order'
 
@@ -188,6 +199,8 @@ const orderDetailsState = ref({})
 const actionState = ref({})
 const showCancelConfirm = ref(false)
 const cancelTargetOrder = ref(null)
+const cancelSuccessMessage = ref('')
+let cancelSuccessTimer = null
 
 function handleUnauthorized(errorMessage) {
   const normalized = `${errorMessage || ''}`.toLowerCase()
@@ -275,8 +288,11 @@ function canCancelOrder(order) {
   return `${order?.status || ''}`.toLowerCase() === 'pending'
 }
 
-async function loadOrders() {
-  isLoading.value = true
+async function loadOrders(options = {}) {
+  const silent = Boolean(options?.silent)
+  if (!silent) {
+    isLoading.value = true
+  }
   loadError.value = ''
   try {
     const payload = await orderStore.getMyOrders()
@@ -289,7 +305,9 @@ async function loadOrders() {
     if (handleUnauthorized(message)) return
     loadError.value = message
   } finally {
-    isLoading.value = false
+    if (!silent) {
+      isLoading.value = false
+    }
   }
 }
 
@@ -360,10 +378,20 @@ function openCancelConfirm(order) {
   showCancelConfirm.value = true
 }
 
-function closeCancelConfirm() {
-  if (isConfirmCancelling.value) return
+function closeCancelConfirm(force = false) {
+  if (!force && isConfirmCancelling.value) return
   showCancelConfirm.value = false
   cancelTargetOrder.value = null
+}
+
+function showCancelSuccessPopup(orderNumber) {
+  const displayOrderNumber = `${orderNumber || ''}`.trim() || '-'
+  cancelSuccessMessage.value = `Your order with order number ${displayOrderNumber} is cancelled.`
+  if (cancelSuccessTimer) clearTimeout(cancelSuccessTimer)
+  cancelSuccessTimer = setTimeout(() => {
+    cancelSuccessMessage.value = ''
+    cancelSuccessTimer = null
+  }, 3500)
 }
 
 const isConfirmCancelling = computed(() => {
@@ -385,8 +413,12 @@ async function confirmCancelOrder() {
   loadError.value = ''
   try {
     await orderStore.cancelMyOrder(orderId)
-    closeCancelConfirm()
-    await loadOrders()
+    closeCancelConfirm(true)
+    orders.value = orders.value.map((item) =>
+      item?._orderId === orderId ? { ...item, status: 'cancelled' } : item,
+    )
+    showCancelSuccessPopup(order.order_number)
+    await loadOrders({ silent: true })
   } catch (error) {
     const message = error?.message || 'Unable to cancel order.'
     if (handleUnauthorized(message)) return
@@ -399,6 +431,10 @@ async function confirmCancelOrder() {
 onMounted(() => {
   loadOrders()
 })
+
+onBeforeUnmount(() => {
+  if (cancelSuccessTimer) clearTimeout(cancelSuccessTimer)
+})
 </script>
 
 <style scoped>
@@ -409,6 +445,14 @@ onMounted(() => {
 
 .order-card {
   background: #fff;
+}
+
+.cancel-success-toast {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1080;
+  max-width: min(92vw, 460px);
 }
 
 .cancel-confirm-backdrop {
@@ -468,5 +512,16 @@ onMounted(() => {
 .confirm-dialog-leave-to {
   opacity: 0;
   transform: translateY(8px) scale(0.97);
+}
+
+.cancel-success-toast-enter-active,
+.cancel-success-toast-leave-active {
+  transition: opacity 0.24s ease, transform 0.24s ease;
+}
+
+.cancel-success-toast-enter-from,
+.cancel-success-toast-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 </style>
