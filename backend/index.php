@@ -102,6 +102,7 @@ try {
             $controller->handleRequest($_SERVER['REQUEST_METHOD'], $id, $action);
             break;
         case 'payments':
+        case 'payment':
             require_once __DIR__ . '/api/controllers/PaymentController.php';
             $controller = new SheetMusic\Controllers\PaymentController();
             $controller->handleRequest($_SERVER['REQUEST_METHOD'], $id, $action);

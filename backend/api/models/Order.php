@@ -89,6 +89,17 @@ class Order
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+    public function getOrderByOrderNumber($order_number)
+    {
+        $query = "SELECT * FROM " . $this->table . " 
+                  WHERE order_number = :order_number";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':order_number', $order_number);
+        $stmt->execute();
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
 
     public function getOrderDetails($order_id)
     {

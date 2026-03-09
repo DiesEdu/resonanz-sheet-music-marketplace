@@ -24,15 +24,39 @@ class PaymentController
     {
         $requestedAction = $action ?? $id;
 
+        $data = json_decode(file_get_contents("php://input"), true);
+        if (!is_array($data)) {
+            $data = [];
+        }
+
+        if ($requestedAction === 'midtrans-status') {
+            AuthMiddleware::authenticate();
+            $order_id = '';
+
+            if ($method === 'GET') {
+                $order_id = trim((string) ($_GET['order_id'] ?? ''));
+            } elseif ($method === 'POST') {
+                $order_id = trim((string) ($data['order_id'] ?? ''));
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+                return;
+            }
+
+            if ($order_id !== '') {
+                echo $this->getPaymentStatusMidtrans($order_id);
+                return;
+            }
+
+            http_response_code(400);
+            echo json_encode(['error' => 'order_id is required']);
+            return;
+        }
+
         if ($method !== 'POST') {
             http_response_code(405);
             echo json_encode(['error' => 'Method not allowed']);
             return;
-        }
-
-        $data = json_decode(file_get_contents("php://input"), true);
-        if (!is_array($data)) {
-            $data = [];
         }
 
         if ($requestedAction === 'create-intent') {
@@ -107,7 +131,7 @@ class PaymentController
         return json_encode(["message" => "Webhook received."]);
     }
 
-    public function confirmPayment($user_id, $data)
+    private function confirmPayment($user_id, $data)
     {
         $order_id = (int) ($data['order_id'] ?? 0);
         $payment_intent_id = (string) ($data['payment_intent_id'] ?? '');
@@ -143,7 +167,7 @@ class PaymentController
         return json_encode(["message" => "Payment already processed."]);
     }
 
-    public function processCheckout($transactionData)
+    private function processCheckout($transactionData)
     {
         $url = $this->getEnvValue('MIDTRANS_BASE_URL', '');
         $server_key = $this->getEnvValue('MIDTRANS_SERVER_KEY', '');
@@ -190,6 +214,56 @@ class PaymentController
         return json_encode([
             'error' => 'Failed to process checkout',
             'details' => json_decode($response, true),
+        ]);
+    }
+
+    private function getPaymentStatusMidtrans($order_id)
+    {
+        $url = "https://api.sandbox.midtrans.com/v2/$order_id/status";
+        $server_key = $this->getEnvValue('MIDTRANS_SERVER_KEY', '');
+
+        if ($server_key === '') {
+            http_response_code(500);
+            return json_encode([
+                'error' => 'Missing Midtrans configuration',
+                'details' => 'MIDTRANS_SERVER_KEY is required'
+            ]);
+        }
+
+        $ch = curl_init($url);
+
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPGET => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Basic ' . base64_encode($server_key . ':'),
+                'Accept: application/json'
+            ],
+            CURLOPT_TIMEOUT => 30,
+        ]);
+
+        $response = curl_exec($ch);
+
+        if ($response === false) {
+            $curlError = curl_error($ch);
+
+            http_response_code(500);
+            return json_encode([
+                'error' => 'cURL error',
+                'details' => $curlError
+            ]);
+        }
+
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        if ($http_code === 200) {
+            return $response;
+        }
+
+        http_response_code($http_code);
+        return json_encode([
+            'error' => 'Failed to get payment status',
+            'details' => json_decode($response, true)
         ]);
     }
 

@@ -27,7 +27,6 @@ export const useOrderStore = defineStore('order', () => {
         paresdUser = null
       }
     }
-    console.log('Placing order for user:', paresdUser || 'Guest')
     const response = await fetch(`${API_BASE_URL}/orders/checkout`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -110,11 +109,10 @@ export const useOrderStore = defineStore('order', () => {
       }
     })()
 
-    const resolvedOrderId = order.order_id || order.id || order.order_number
     const billing = order.billing_info || {}
     const inputOrder = {
       transaction_details: {
-        order_id: order.order_number || resolvedOrderId,
+        order_id: order.order_number,
         gross_amount: order.total_amount,
       },
       credit_card: {
@@ -171,7 +169,7 @@ export const useOrderStore = defineStore('order', () => {
     <div style="background: white; width: 90%; max-width: 500px; border-radius: 8px; overflow: hidden;">
       <div style="padding: 16px; background: #f8f9fa; border-bottom: 1px solid #dee2e6; display: flex; justify-content: space-between; align-items: center;">
         <h3 style="margin: 0; font-size: 18px;">Complete Payment</h3>
-        <button id="close-modal" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">&times;</button>
+        <button id="close-modal" style="background: none; border: none; font-size: 48px; cursor: pointer; color: #666;">&times;</button>
       </div>
       <iframe
         id="payment-iframe"
@@ -189,37 +187,105 @@ export const useOrderStore = defineStore('order', () => {
 
     // Close button handler
     document.getElementById('close-modal').onclick = () => {
-      closePaymentModal(resolvedOrderId)
+      closePaymentModal(order.order_id)
     }
 
     // Listen for messages from iframe
     window.addEventListener('message', handlePaymentMessage, false)
 
     // Store orderId for later reference
-    modal.dataset.orderId = resolvedOrderId
+    modal.dataset.orderId = order.order_id
+    modal.dataset.orderNumber = order.order_number || ''
   }
 
-  const closePaymentModal = (orderId) => {
+  const closePaymentModal = async (orderId) => {
     const modal = document.getElementById('payment-modal')
     if (modal) {
       modal.remove()
       window.removeEventListener('message', handlePaymentMessage)
 
       // Check payment status
-      checkPaymentStatus(orderId)
+      await checkPaymentStatus(orderId)
     }
   }
 
   const checkPaymentStatus = async (orderId) => {
     try {
-      const response = await fetch(`/api/order/${orderId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
+      const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
       })
-      return response.data
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to fetch order detail')
+      }
+      return payload
     } catch (error) {
       console.error('Error checking payment status:', error)
+      throw error
+    }
+  }
+
+  const updateMidtransPaymentStatus = async (orderNumber) => {
+    try {
+      // First, get the order ID using the order number
+      const response_order = await fetch(
+        `${API_BASE_URL}/orders/order-number?order_number=${orderNumber}`,
+        {
+          method: 'GET',
+          headers: getAuthHeaders(),
+        },
+      )
+      const orders = await response_order.json().catch(() => [])
+      if (!response_order.ok || orders.length === 0) {
+        throw new Error(`Failed to fetch order with number ${orderNumber}`)
+      }
+      const orderId = orders.id
+
+      // Then, get the payment status from Midtrans
+      const response = await fetch(
+        `${API_BASE_URL}/payment/midtrans-status?order_id=${orderNumber}`,
+        {
+          method: 'GET',
+          headers: getAuthHeaders(),
+        },
+      )
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(payload?.error || `Failed to get payment status (${response.status})`)
+      }
+
+      if (
+        payload?.transaction_status === 'settlement' ||
+        payload?.transaction_status === 'capture'
+      ) {
+        await fetch(`${API_BASE_URL}/orders/update-payment-status`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            order_id: Number.parseInt(orderId, 10),
+            payment_status: 'paid',
+          }),
+        })
+      } else if (
+        payload?.transaction_status === 'cancel' ||
+        payload?.transaction_status === 'deny' ||
+        payload?.transaction_status === 'expire' ||
+        payload?.transaction_status === 'failure'
+      ) {
+        await fetch(`${API_BASE_URL}/orders/update-payment-status`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            order_id: Number.parseInt(orderId, 10),
+            payment_status: 'failed',
+          }),
+        })
+      }
+
+      return payload
+    } catch (error) {
+      console.error('Error updating payment status:', error)
       throw error
     }
   }
@@ -260,5 +326,6 @@ export const useOrderStore = defineStore('order', () => {
     getOrderById,
     cancelMyOrder,
     openPaymentModal,
+    updateMidtransPaymentStatus,
   }
 })

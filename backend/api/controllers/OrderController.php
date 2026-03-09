@@ -36,6 +36,8 @@ class OrderController
                     $this->getDownloads($user_data['id']);
                 } elseif ($id && is_numeric($id)) {
                     $this->getOrder($id, $user_data['id']);
+                } elseif ($requestedAction === 'order-number' && isset($_GET['order_number'])) {
+                    $this->getOrderByOrderNumber($_GET['order_number'], $user_data['id']);
                 } else {
                     $this->getUserOrders($user_data['id']);
                 }
@@ -44,12 +46,19 @@ class OrderController
             case 'POST':
                 if ($requestedAction === 'checkout') {
                     $this->checkout($user_data['id']);
+                } elseif ($requestedAction === 'update-payment-status') {
+                    $data = json_decode(file_get_contents("php://input"), true);
+                    $this->updateOrderPaymentStatus(
+                        $data['order_id'] ?? 0,
+                        $data['payment_status'] ?? '',
+                        $user_data
+                    );
                 }
                 break;
 
             case 'PUT':
                 if ($action === 'cancel' && $id && is_numeric($id)) {
-                    $this->cancelOrder((int)$id, $user_data['id']);
+                    $this->cancelOrder((int) $id, $user_data['id']);
                 } elseif ($action === 'status' && $id && is_numeric($id)) {
                     $this->updateStatus($id);
                 } elseif ($id === 'status' && $action && is_numeric($action)) {
@@ -61,6 +70,75 @@ class OrderController
                 http_response_code(405);
                 echo json_encode(['error' => 'Method not allowed']);
         }
+    }
+
+    private function getOrderByOrderNumber($order_number, $user_id)
+    {
+        $order = $this->order->getOrderByOrderNumber($order_number);
+        $orderUserId = $order['user_id'] ?? null;
+
+        if ($order && ($orderUserId == $user_id || $this->isAdmin())) {
+            http_response_code(200);
+            echo json_encode($order);
+        } else {
+            http_response_code(404);
+            echo json_encode(['error' => 'Order not found']);
+        }
+    }
+
+    private function updateOrderPaymentStatus($order_id, $payment_status, $user_data)
+    {
+        $order_id = (int) $order_id;
+        $payment_status = strtolower(trim((string) $payment_status));
+        $allowed_payment_statuses = ['pending', 'paid', 'failed'];
+
+        if ($order_id <= 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Valid order_id is required']);
+            return;
+        }
+
+        if (!in_array($payment_status, $allowed_payment_statuses, true)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid payment_status. Allowed: pending, paid, failed']);
+            return;
+        }
+
+        $order_data = $this->order->getOrderDetails($order_id);
+        if (!$order_data) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Order not found']);
+            return;
+        }
+
+        // Logged-in users can only update their own orders, except admin.
+        $is_admin = ($user_data['role'] ?? '') === 'admin';
+        if (!$is_admin && (int) ($order_data['user_id'] ?? 0) !== (int) ($user_data['id'] ?? 0)) {
+            http_response_code(403);
+            echo json_encode(['error' => 'You are not allowed to update this order']);
+            return;
+        }
+
+        if (!$this->order->updatePaymentStatus($order_id, $payment_status)) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Unable to update order status']);
+            return;
+        }
+
+        if ($payment_status === 'paid' && ($order_data['status'] ?? '') !== 'processing') {
+            if (!$this->order->updateStatus($order_id, 'processing')) {
+                http_response_code(500);
+                echo json_encode(['error' => 'Payment updated, but failed to update order status']);
+                return;
+            }
+        }
+
+        http_response_code(200);
+        echo json_encode([
+            'message' => 'Order payment status updated',
+            'order_id' => $order_id,
+            'payment_status' => $payment_status
+        ]);
     }
 
     private function checkout($user_id)
