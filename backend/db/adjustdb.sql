@@ -24,3 +24,5 @@ CREATE TABLE IF NOT EXISTS favorites (
 );
 ---------------------------------------------------------------------
 ALTER TABLE sheet_music ADD COLUMN arranger VARCHAR(255) NULL AFTER composer;
+ALTER TABLE sheet_music ADD COLUMN sample_audio VARCHAR(255) NULL AFTER file_path;
+---------------------------------------------------------------------

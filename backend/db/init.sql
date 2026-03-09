@@ -47,6 +47,7 @@ CREATE TABLE sheet_music (
     pages INT,
     format VARCHAR(50) DEFAULT 'PDF',
     file_path VARCHAR(255),
+    sample_audio VARCHAR(255),
     cover_image VARCHAR(255),
     sample_path VARCHAR(255),
     rating DECIMAL(3,2) DEFAULT 0,

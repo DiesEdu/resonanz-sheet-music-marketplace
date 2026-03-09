@@ -175,6 +175,7 @@ class SheetMusic
                       pages = :pages,
                       format = :format,
                       pdf_name = COALESCE(NULLIF(TRIM(:pdf_name), ''), pdf_name),
+                      sample_audio = COALESCE(NULLIF(TRIM(:sample_audio), ''), sample_audio),
                       is_featured = :is_featured,
                       is_premium = :is_premium
                   WHERE id = :id";
@@ -194,6 +195,8 @@ class SheetMusic
         $stmt->bindParam(':format', $data['format']);
         $pdfName = $data['pdf_name'] ?? null;
         $stmt->bindParam(':pdf_name', $pdfName);
+        $sampleAudio = $data['sample_audio'] ?? null;
+        $stmt->bindParam(':sample_audio', $sampleAudio);
         $stmt->bindParam(':is_featured', $data['is_featured']);
         $stmt->bindParam(':is_premium', $data['is_premium']);
         $stmt->bindParam(':id', $id);

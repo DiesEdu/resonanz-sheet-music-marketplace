@@ -87,7 +87,6 @@
             <select id="format" v-model="form.format" class="form-select" required>
               <option value="PDF">PDF</option>
               <option value="PDF + Audio">PDF + Audio</option>
-              <option value="PDF + MIDI">PDF + MIDI</option>
             </select>
           </div>
 
@@ -131,7 +130,8 @@
           <div class="col-12">
             <label for="sheetFile" class="form-label">Sheet PDF File*</label>
             <div class="alert alert-warning py-2 px-3 mb-2" role="alert">
-              PDF file can only be uploaded once. If you want to change it, please contact admin.
+              PDF/Audio file can only be uploaded once. If you want to change it, please contact
+              admin.
             </div>
             <input
               id="sheetFile"
@@ -149,6 +149,28 @@
                 (isEditMode
                   ? 'PDF replacement is not available in edit mode yet.'
                   : 'Upload a PDF file.')
+              }}
+            </small>
+          </div>
+
+          <div v-if="form.format === 'PDF + Audio'" class="col-12">
+            <label for="sampleAudioFile" class="form-label">Sample Audio File*</label>
+            <input
+              id="sampleAudioFile"
+              type="file"
+              class="form-control"
+              accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/ogg,audio/mp4,.mp3,.wav,.ogg,.m4a"
+              @change="handleAudioFileChange"
+              :required="!isEditMode && form.format === 'PDF + Audio'"
+              :disabled="isEditMode"
+            />
+            <small class="text-muted d-block mt-1">
+              {{
+                selectedAudioName ||
+                existingAudioName ||
+                (isEditMode
+                  ? 'Audio replacement is not available in edit mode yet.'
+                  : 'Upload an audio sample file (.mp3, .wav, .ogg, .m4a).')
               }}
             </small>
           </div>
@@ -392,6 +414,7 @@ const form = reactive({
   pages: null,
   coverImage: '',
   description: '',
+  sampleAudio: '',
 })
 
 const errorMessage = ref('')
@@ -402,6 +425,9 @@ const purchaseErrorMessage = ref('')
 const selectedPdfFile = ref(null)
 const selectedPdfName = ref('')
 const existingPdfName = ref('')
+const selectedAudioFile = ref(null)
+const selectedAudioName = ref('')
+const existingAudioName = ref('')
 const pdfPreviewUrl = ref('')
 const editingSheetId = ref(null)
 const currentPage = ref(1)
@@ -419,6 +445,7 @@ const priceInput = computed({
     form.price = digitsOnly ? Number(digitsOnly) : null
   },
 })
+const MAX_AUDIO_SIZE_BYTES = 5 * 1024 * 1024
 
 function setPdfPreviewUrl(nextUrl = '') {
   if (pdfPreviewUrl.value && pdfPreviewUrl.value.startsWith('blob:')) {
@@ -527,9 +554,13 @@ function resetForm() {
   form.pages = null
   form.coverImage = ''
   form.description = ''
+  form.sampleAudio = ''
   selectedPdfFile.value = null
   selectedPdfName.value = ''
   existingPdfName.value = ''
+  selectedAudioFile.value = null
+  selectedAudioName.value = ''
+  existingAudioName.value = ''
   setPdfPreviewUrl('')
 }
 
@@ -575,6 +606,54 @@ function handlePdfFileChange(event) {
   setPdfPreviewUrl(URL.createObjectURL(file))
 }
 
+function isAllowedAudioFile(file) {
+  const allowedMimeTypes = [
+    'audio/mpeg',
+    'audio/mp3',
+    'audio/wav',
+    'audio/x-wav',
+    'audio/ogg',
+    'audio/mp4',
+  ]
+  const allowedExtensions = ['mp3', 'wav', 'ogg', 'm4a']
+  const extension = String(file?.name || '')
+    .split('.')
+    .pop()
+    ?.toLowerCase()
+
+  return allowedMimeTypes.includes(file?.type) || allowedExtensions.includes(extension)
+}
+
+function handleAudioFileChange(event) {
+  const file = event?.target?.files?.[0] || null
+
+  if (!file) {
+    selectedAudioFile.value = null
+    selectedAudioName.value = ''
+    return
+  }
+
+  if (!isAllowedAudioFile(file)) {
+    errorMessage.value = 'Please upload a valid audio file (.mp3, .wav, .ogg, .m4a).'
+    selectedAudioFile.value = null
+    selectedAudioName.value = ''
+    event.target.value = ''
+    return
+  }
+  if (Number(file.size) > MAX_AUDIO_SIZE_BYTES) {
+    errorMessage.value = 'Audio file size must be 5MB or less.'
+    selectedAudioFile.value = null
+    selectedAudioName.value = ''
+    event.target.value = ''
+    return
+  }
+
+  selectedAudioFile.value = file
+  selectedAudioName.value = file.name
+  existingAudioName.value = ''
+  errorMessage.value = ''
+}
+
 function resolveInstrumentId(sheet) {
   const rawId = sheet.instrument_id ?? sheet.instrumentId
   const numericId = Number(rawId)
@@ -614,6 +693,7 @@ function startEdit(sheet) {
   form.pages = Number(sheet.pages) || 1
   form.coverImage = sheet.coverImage || sheet.cover_image || ''
   form.description = sheet.description || ''
+  form.sampleAudio = sheet.sample_audio || ''
   selectedPdfFile.value = null
   selectedPdfName.value = ''
   existingPdfName.value =
@@ -622,6 +702,9 @@ function startEdit(sheet) {
     (sheet.file_path ? sheet.file_path.split(/[\\/]/).pop() : '') ||
     ''
   setPdfPreviewUrl(buildAssetUrl(sheet.file_path || ''))
+  selectedAudioFile.value = null
+  selectedAudioName.value = ''
+  existingAudioName.value = sheet.sample_audio ? sheet.sample_audio.split(/[\\/]/).pop() || '' : ''
   errorMessage.value = ''
   successMessage.value = ''
 }
@@ -634,6 +717,18 @@ watch(
     }
   },
   { immediate: true },
+)
+
+watch(
+  () => form.format,
+  (nextFormat) => {
+    if (nextFormat !== 'PDF + Audio') {
+      form.sampleAudio = ''
+      selectedAudioFile.value = null
+      selectedAudioName.value = ''
+      existingAudioName.value = ''
+    }
+  },
 )
 
 function cancelEdit(clearMessages = true) {
@@ -680,9 +775,17 @@ async function handleSubmit() {
     return
   }
 
+  if (form.format === 'PDF + Audio' && !isEditMode.value && !selectedAudioFile.value) {
+    errorMessage.value = 'Please upload an audio sample file.'
+    return
+  }
+
   try {
     if (isEditMode.value) {
-      await sheetStore.updateSheet(editingSheetId.value, { ...form })
+      await sheetStore.updateSheet(editingSheetId.value, {
+        ...form,
+        sample_audio: form.sampleAudio || '',
+      })
       successMessage.value = 'Sheet music updated successfully.'
       cancelEdit(false)
       return
@@ -692,6 +795,8 @@ async function handleSubmit() {
       ...form,
       pdf_name: selectedPdfName.value,
       pdfFile: selectedPdfFile.value,
+      sampleAudioFile: selectedAudioFile.value,
+      sample_audio: form.sampleAudio || '',
       created_by: currentUserId.value,
     })
     successMessage.value = 'Sheet music published successfully.'

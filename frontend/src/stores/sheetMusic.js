@@ -26,6 +26,7 @@ export const useSheetMusicStore = defineStore('sheetMusic', () => {
       format: payload.format,
       pdf_name: payload.pdf_name || '',
       file_path: payload.file_path || '',
+      sample_audio: payload.sample_audio || '',
       cover_image: payload.coverImage || payload.cover_image || '',
       is_featured: 0,
       is_premium: 0,
@@ -51,16 +52,22 @@ export const useSheetMusicStore = defineStore('sheetMusic', () => {
   async function addSheet(payload) {
     const requestBody = mapFormToApiPayload(payload)
     const hasPdfFile = payload?.pdfFile instanceof File
+    const hasSampleAudioFile = payload?.sampleAudioFile instanceof File
 
     const headers = { ...getAuthHeaders() }
     let body
 
-    if (hasPdfFile) {
+    if (hasPdfFile || hasSampleAudioFile) {
       const formData = new FormData()
       Object.entries(requestBody).forEach(([key, value]) => {
         formData.append(key, value ?? '')
       })
-      formData.append('sheet_file', payload.pdfFile)
+      if (hasPdfFile) {
+        formData.append('sheet_file', payload.pdfFile)
+      }
+      if (hasSampleAudioFile) {
+        formData.append('sample_audio_file', payload.sampleAudioFile)
+      }
       body = formData
     } else {
       headers['Content-Type'] = 'application/json'

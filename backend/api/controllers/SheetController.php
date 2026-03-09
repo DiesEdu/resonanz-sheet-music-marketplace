@@ -8,8 +8,11 @@ use SheetMusic\Middleware\AuthMiddleware;
 
 class SheetController
 {
+    private const MAX_AUDIO_SIZE_BYTES = 5242880; // 5MB
+
     private $db;
     private $sheet;
+    private $audioUploadError = '';
 
     public function __construct()
     {
@@ -120,6 +123,7 @@ class SheetController
 
         $data = $this->getRequestData();
         $uploadedFilePath = $this->handleFileUpload('sheet_file');
+        $uploadedAudioPath = $this->handleAudioUpload('sample_audio_file');
 
         if (empty($data['title']) || empty($data['composer'])) {
             http_response_code(400);
@@ -142,6 +146,21 @@ class SheetController
             echo json_encode(['error' => 'Missing required field: file_path']);
             return;
         }
+        $resolvedSampleAudio = trim((string) ($uploadedAudioPath ?? ($data['sample_audio'] ?? '')));
+        $normalizedFormat = trim((string) $data['format']);
+        if ($normalizedFormat === 'PDF + Audio' && $resolvedSampleAudio === '') {
+            $hasAudioUploadAttempt = isset($_FILES['sample_audio_file'])
+                && (($_FILES['sample_audio_file']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE);
+            http_response_code(400);
+            echo json_encode([
+                'error' => $hasAudioUploadAttempt
+                    ? ($this->audioUploadError !== ''
+                        ? $this->audioUploadError
+                        : 'Audio upload failed. Please upload a valid .mp3, .wav, .ogg, or .m4a file.')
+                    : 'Missing required field: sample_audio'
+            ]);
+            return;
+        }
 
         $normalizedData = [
             'title' => trim((string) $data['title']),
@@ -155,9 +174,10 @@ class SheetController
             'difficulty' => trim((string) $data['difficulty']),
             'price' => (float) $data['price'],
             'pages' => (int) $data['pages'],
-            'format' => trim((string) $data['format']),
+            'format' => $normalizedFormat,
             'pdf_name' => trim((string) ($data['pdf_name'] ?? '')),
             'file_path' => $resolvedFilePath,
+            'sample_audio' => $resolvedSampleAudio,
             'cover_image' => trim((string) ($data['cover_image'] ?? '')),
             'is_featured' => !empty($data['is_featured']) ? 1 : 0,
             'is_premium' => !empty($data['is_premium']) ? 1 : 0,
@@ -204,11 +224,11 @@ class SheetController
     {
         $query = "INSERT INTO sheet_music (
             title, subtitle, composer, arranger, description, instrument_id, list_instruments, category_id,
-            difficulty, price, pages, format, pdf_name, file_path, cover_image,
+            difficulty, price, pages, format, pdf_name, file_path, sample_audio, cover_image,
             is_featured, is_premium, rating, reviews_count, downloads_count, views_count, created_by
         ) VALUES (
             :title, :subtitle, :composer, :arranger, :description, :instrument_id, :list_instruments, :category_id,
-            :difficulty, :price, :pages, :format, :pdf_name, :file_path, :cover_image,
+            :difficulty, :price, :pages, :format, :pdf_name, :file_path, :sample_audio, :cover_image,
             :is_featured, :is_premium, :rating, :reviews_count, :downloads_count, :views_count, :created_by
         )";
 
@@ -229,6 +249,7 @@ class SheetController
             ':format' => $data['format'],
             ':pdf_name' => $data['pdf_name'],
             ':file_path' => $data['file_path'],
+            ':sample_audio' => $data['sample_audio'],
             ':cover_image' => $data['cover_image'],
             ':is_featured' => $data['is_featured'],
             ':is_premium' => $data['is_premium'],
@@ -356,6 +377,98 @@ class SheetController
             return '/api/uploads/sheets/' . $filename;
         }
 
+        return null;
+    }
+
+    private function handleAudioUpload($field_name)
+    {
+        $this->audioUploadError = '';
+
+        if (!isset($_FILES[$field_name])) {
+            return null;
+        }
+
+        $file = $_FILES[$field_name];
+        $uploadError = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+        if ($uploadError !== UPLOAD_ERR_OK) {
+            if ($uploadError === UPLOAD_ERR_NO_FILE) {
+                return null;
+            }
+
+            $errorMap = [
+                UPLOAD_ERR_INI_SIZE => sprintf(
+                    'Audio upload failed: server upload_max_filesize is %s (post_max_size %s). It must be at least 5M.',
+                    (string) ini_get('upload_max_filesize'),
+                    (string) ini_get('post_max_size')
+                ),
+                UPLOAD_ERR_FORM_SIZE => 'Audio upload failed: file exceeds form MAX_FILE_SIZE limit.',
+                UPLOAD_ERR_PARTIAL => 'Audio upload failed: file was only partially uploaded.',
+                UPLOAD_ERR_NO_TMP_DIR => 'Audio upload failed: missing temporary upload directory on server.',
+                UPLOAD_ERR_CANT_WRITE => 'Audio upload failed: server cannot write uploaded file to disk.',
+                UPLOAD_ERR_EXTENSION => 'Audio upload failed: blocked by a PHP extension.',
+            ];
+            $this->audioUploadError = $errorMap[$uploadError] ?? 'Audio upload failed due to server upload error.';
+            return null;
+        }
+
+        $allowedMimeTypes = [
+            'audio/mpeg',
+            'audio/mp3',
+            'audio/wav',
+            'audio/x-wav',
+            'audio/ogg',
+            'audio/mp4',
+            'audio/x-m4a'
+        ];
+        $allowedExtensions = ['mp3', 'wav', 'ogg', 'm4a'];
+
+        $fileSize = (int) ($file['size'] ?? 0);
+        if ($fileSize <= 0) {
+            $this->audioUploadError = 'Audio upload failed: invalid file size.';
+            return null;
+        }
+        if ($fileSize > self::MAX_AUDIO_SIZE_BYTES) {
+            $this->audioUploadError = 'Audio upload failed: maximum allowed audio size is 5MB.';
+            return null;
+        }
+
+        $extension = strtolower((string) pathinfo($file['name'] ?? '', PATHINFO_EXTENSION));
+        if (!in_array($extension, $allowedExtensions, true)) {
+            $this->audioUploadError = 'Audio upload failed: unsupported file extension.';
+            return null;
+        }
+
+        $tmpName = $file['tmp_name'] ?? '';
+        if ($tmpName === '' || !is_uploaded_file($tmpName)) {
+            $this->audioUploadError = 'Audio upload failed: temporary upload file is not available.';
+            return null;
+        }
+
+        $detectedMime = $tmpName !== '' ? mime_content_type($tmpName) : '';
+        $isGenericMime = $detectedMime === '' || $detectedMime === 'application/octet-stream';
+        if (!$isGenericMime && !in_array($detectedMime, $allowedMimeTypes, true)) {
+            $this->audioUploadError = 'Audio upload failed: invalid audio content type detected.';
+            return null;
+        }
+
+        $upload_dir = __DIR__ . '/../uploads/audio_samples/';
+
+        if (!file_exists($upload_dir)) {
+            mkdir($upload_dir, 0777, true);
+        }
+        if (!is_dir($upload_dir) || !is_writable($upload_dir)) {
+            $this->audioUploadError = 'Audio upload failed: destination folder is not writable.';
+            return null;
+        }
+
+        $filename = uniqid() . '_' . time() . '.' . $extension;
+        $destination = $upload_dir . $filename;
+
+        if (move_uploaded_file($file['tmp_name'], $destination)) {
+            return '/api/uploads/audio_samples/' . $filename;
+        }
+
+        $this->audioUploadError = 'Audio upload failed: could not move uploaded file to destination.';
         return null;
     }
 }
