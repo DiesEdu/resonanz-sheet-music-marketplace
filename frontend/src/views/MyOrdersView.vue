@@ -62,11 +62,15 @@
               </div>
 
               <div class="mt-3">
-                <div class="d-flex flex-wrap gap-2">
+                <div class="d-flex flex-wrap gap-2 order-actions">
                   <button
                     type="button"
                     class="btn btn-sm btn-outline-primary"
                     :disabled="!order._orderId || orderDetailsState[order._orderId]?.loading"
+                    :aria-label="
+                      orderDetailsState[order._orderId]?.open ? 'Hide Items' : 'View Items'
+                    "
+                    :title="orderDetailsState[order._orderId]?.open ? 'Hide Items' : 'View Items'"
                     @click="toggleOrderItems(order._orderId)"
                   >
                     <span
@@ -74,13 +78,26 @@
                       class="spinner-border spinner-border-sm me-2"
                       role="status"
                     ></span>
-                    {{ orderDetailsState[order._orderId]?.open ? 'Hide Items' : 'View Items' }}
+                    <i
+                      v-else
+                      :class="
+                        orderDetailsState[order._orderId]?.open
+                          ? 'bi bi-eye-slash me-sm-1'
+                          : 'bi bi-eye me-sm-1'
+                      "
+                      aria-hidden="true"
+                    ></i>
+                    <span class="d-none d-sm-inline">{{
+                      orderDetailsState[order._orderId]?.open ? 'Hide Items' : 'View Items'
+                    }}</span>
                   </button>
                   <button
                     v-if="canProcessPayment(order)"
                     type="button"
                     class="btn btn-sm btn-primary"
                     :disabled="!order._orderId || actionState[order._orderId]?.processing"
+                    aria-label="Process"
+                    title="Process"
                     @click="processPayment(order)"
                   >
                     <span
@@ -88,13 +105,33 @@
                       class="spinner-border spinner-border-sm me-2"
                       role="status"
                     ></span>
-                    Process
+                    <i v-else class="bi bi-credit-card me-sm-1" aria-hidden="true"></i>
+                    <span class="d-none d-sm-inline">Process</span>
+                  </button>
+                  <button
+                    v-if="canCheckPaymentStatus(order)"
+                    type="button"
+                    class="btn btn-sm btn-outline-info"
+                    :disabled="!order._orderId || actionState[order._orderId]?.checkingStatus"
+                    aria-label="Check Payment Status"
+                    title="Check Payment Status"
+                    @click="checkPaymentStatus(order)"
+                  >
+                    <span
+                      v-if="actionState[order._orderId]?.checkingStatus"
+                      class="spinner-border spinner-border-sm me-2"
+                      role="status"
+                    ></span>
+                    <i v-else class="bi bi-arrow-repeat me-sm-1" aria-hidden="true"></i>
+                    <span class="d-none d-sm-inline">Check Status</span>
                   </button>
                   <button
                     v-if="canCancelOrder(order)"
                     type="button"
                     class="btn btn-sm btn-outline-danger"
                     :disabled="!order._orderId || actionState[order._orderId]?.cancelling"
+                    aria-label="Cancel Order"
+                    title="Cancel Order"
                     @click="openCancelConfirm(order)"
                   >
                     <span
@@ -102,7 +139,8 @@
                       class="spinner-border spinner-border-sm me-2"
                       role="status"
                     ></span>
-                    Cancel Order
+                    <i v-else class="bi bi-x-circle me-sm-1" aria-hidden="true"></i>
+                    <span class="d-none d-sm-inline">Cancel Order</span>
                   </button>
                 </div>
               </div>
@@ -166,7 +204,11 @@
             This action cannot be undone and payment for this order will be closed.
           </p>
           <div class="d-flex justify-content-end gap-2">
-            <button type="button" class="btn btn-outline-secondary btn-sm" @click="closeCancelConfirm">
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-sm"
+              @click="closeCancelConfirm"
+            >
               Keep Order
             </button>
             <button
@@ -273,6 +315,7 @@ function ensureActionState(orderId) {
   if (!actionState.value[orderId]) {
     actionState.value[orderId] = {
       processing: false,
+      checkingStatus: false,
       cancelling: false,
     }
   }
@@ -286,6 +329,12 @@ function canProcessPayment(order) {
 
 function canCancelOrder(order) {
   return `${order?.status || ''}`.toLowerCase() === 'pending'
+}
+
+function canCheckPaymentStatus(order) {
+  const paymentStatus = `${order?.payment_status || ''}`.toLowerCase()
+  const orderStatus = `${order?.status || ''}`.toLowerCase()
+  return paymentStatus === 'pending' && orderStatus !== 'cancelled'
 }
 
 async function loadOrders(options = {}) {
@@ -369,6 +418,29 @@ async function processPayment(order) {
     loadError.value = message
   } finally {
     state.processing = false
+  }
+}
+
+async function checkPaymentStatus(order) {
+  const orderId = order?._orderId
+  const orderNumber = `${order?.order_number || ''}`.trim()
+  if (!orderId || !orderNumber || !canCheckPaymentStatus(order)) return
+
+  ensureActionState(orderId)
+  const state = actionState.value[orderId]
+  if (state.checkingStatus) return
+
+  state.checkingStatus = true
+  loadError.value = ''
+  try {
+    await orderStore.updateMidtransPaymentStatus(orderNumber)
+    await loadOrders({ silent: true })
+  } catch (error) {
+    const message = error?.message || 'Unable to check payment status.'
+    if (handleUnauthorized(message)) return
+    loadError.value = message
+  } finally {
+    state.checkingStatus = false
   }
 }
 
@@ -505,7 +577,9 @@ onBeforeUnmount(() => {
 
 .confirm-dialog-enter-active,
 .confirm-dialog-leave-active {
-  transition: opacity 0.22s ease, transform 0.22s ease;
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
 }
 
 .confirm-dialog-enter-from,
@@ -516,12 +590,29 @@ onBeforeUnmount(() => {
 
 .cancel-success-toast-enter-active,
 .cancel-success-toast-leave-active {
-  transition: opacity 0.24s ease, transform 0.24s ease;
+  transition:
+    opacity 0.24s ease,
+    transform 0.24s ease;
 }
 
 .cancel-success-toast-enter-from,
 .cancel-success-toast-leave-to {
   opacity: 0;
   transform: translateY(-6px);
+}
+
+@media (max-width: 575.98px) {
+  .order-actions .btn {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .order-actions .spinner-border {
+    margin-right: 0 !important;
+  }
 }
 </style>

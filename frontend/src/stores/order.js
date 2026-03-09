@@ -267,6 +267,7 @@ export const useOrderStore = defineStore('order', () => {
             payment_status: 'paid',
           }),
         })
+        return payload
       } else if (
         payload?.transaction_status === 'cancel' ||
         payload?.transaction_status === 'deny' ||
