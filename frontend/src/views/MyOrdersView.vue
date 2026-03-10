@@ -162,9 +162,26 @@
                       <p class="mb-0 fw-semibold">{{ item.title || 'Untitled Sheet' }}</p>
                       <small class="text-muted">{{ item.composer || 'Unknown composer' }}</small>
                     </div>
-                    <small class="text-muted">
-                      {{ item.quantity }} x {{ formatCurrency(item.price) }}
-                    </small>
+                    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                      <small class="text-muted">
+                        {{ item.quantity }} x {{ formatCurrency(item.price) }}
+                      </small>
+                      <button
+                        v-if="canDownloadItem(order, item)"
+                        type="button"
+                        class="btn btn-sm btn-outline-success"
+                        :disabled="downloadState[item.sheet_id]?.downloading"
+                        @click="downloadItem(order, item)"
+                      >
+                        <span
+                          v-if="downloadState[item.sheet_id]?.downloading"
+                          class="spinner-border spinner-border-sm me-1"
+                          role="status"
+                        ></span>
+                        <i v-else class="bi bi-download me-1" aria-hidden="true"></i>
+                        Download PDF
+                      </button>
+                    </div>
                   </li>
                 </ul>
                 <p v-else class="text-muted mb-0 small">No items found in this order.</p>
@@ -239,6 +256,7 @@ const isLoading = ref(false)
 const loadError = ref('')
 const orderDetailsState = ref({})
 const actionState = ref({})
+const downloadState = ref({})
 const showCancelConfirm = ref(false)
 const cancelTargetOrder = ref(null)
 const cancelSuccessMessage = ref('')
@@ -321,6 +339,12 @@ function ensureActionState(orderId) {
   }
 }
 
+function ensureDownloadState(sheetId) {
+  if (!downloadState.value[sheetId]) {
+    downloadState.value[sheetId] = { downloading: false }
+  }
+}
+
 function canProcessPayment(order) {
   const paymentStatus = `${order?.payment_status || ''}`.toLowerCase()
   const orderStatus = `${order?.status || ''}`.toLowerCase()
@@ -335,6 +359,14 @@ function canCheckPaymentStatus(order) {
   const paymentStatus = `${order?.payment_status || ''}`.toLowerCase()
   const orderStatus = `${order?.status || ''}`.toLowerCase()
   return paymentStatus === 'pending' && orderStatus !== 'cancelled'
+}
+
+function isPaid(order) {
+  return `${order?.payment_status || ''}`.toLowerCase() === 'paid'
+}
+
+function canDownloadItem(order, item) {
+  return isPaid(order) && Boolean(item?.sheet_id)
 }
 
 async function loadOrders(options = {}) {
@@ -497,6 +529,27 @@ async function confirmCancelOrder() {
     loadError.value = message
   } finally {
     state.cancelling = false
+  }
+}
+
+async function downloadItem(order, item) {
+  const sheetId = item?.sheet_id
+  if (!sheetId || !canDownloadItem(order, item)) return
+
+  ensureDownloadState(sheetId)
+  const state = downloadState.value[sheetId]
+  if (state.downloading) return
+
+  state.downloading = true
+  loadError.value = ''
+  try {
+    await orderStore.downloadSheet(sheetId, item.title || 'sheet-music')
+  } catch (error) {
+    const message = error?.message || 'Unable to download file.'
+    if (handleUnauthorized(message)) return
+    loadError.value = message
+  } finally {
+    state.downloading = false
   }
 }
 

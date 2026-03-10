@@ -291,6 +291,30 @@ export const useOrderStore = defineStore('order', () => {
     }
   }
 
+  const downloadSheet = async (sheetId, filename = 'sheet-music.pdf') => {
+    if (!sheetId) throw new Error('Sheet ID is required')
+
+    const response = await fetch(`${API_BASE_URL}/orders/${sheetId}/download`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    })
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null)
+      throw new Error(payload?.error || `Failed to download sheet (${response.status})`)
+    }
+
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename?.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  }
+
   const handlePaymentMessage = (event) => {
     // Security check - verify origin
     if (
@@ -328,5 +352,6 @@ export const useOrderStore = defineStore('order', () => {
     cancelMyOrder,
     openPaymentModal,
     updateMidtransPaymentStatus,
+    downloadSheet,
   }
 })

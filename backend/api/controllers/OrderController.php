@@ -5,6 +5,7 @@ namespace SheetMusic\Controllers;
 use SheetMusic\Config\Database;
 use SheetMusic\Models\Order;
 use SheetMusic\Models\Cart;
+use SheetMusic\Models\SheetMusic;
 use SheetMusic\Middleware\AuthMiddleware;
 
 class OrderController
@@ -268,6 +269,8 @@ class OrderController
 
     private function downloadSheet($sheet_id, $user_id)
     {
+        error_log("Download request - Sheet: $sheet_id | User: $user_id");
+
         // Verify purchase
         if (!$this->order->verifyPurchase($user_id, $sheet_id)) {
             http_response_code(403);
@@ -280,6 +283,24 @@ class OrderController
         $sheet_info = $sheet->getById($sheet_id);
 
         if (!$sheet_info || !$sheet_info['file_path']) {
+            error_log("File missing for sheet: $sheet_id");
+            http_response_code(404);
+            echo json_encode(['error' => 'File not found']);
+            return;
+        }
+
+        // Normalize stored path to avoid duplicated /api prefixes
+        $baseDir = realpath(__DIR__ . '/..'); // backend/api
+        $filePath = ltrim($sheet_info['file_path'], '/');
+        if (str_starts_with($filePath, 'api/')) {
+            $filePath = substr($filePath, 4); // drop leading "api/"
+        }
+        $fullPath = $baseDir ? realpath($baseDir . '/' . $filePath) : false;
+
+        error_log("Serving file resolved to: " . ($fullPath ?: 'null'));
+
+        if (!$fullPath || !file_exists($fullPath)) {
+            error_log("File does not exist: " . ($fullPath ?: 'unresolved'));
             http_response_code(404);
             echo json_encode(['error' => 'File not found']);
             return;
@@ -289,22 +310,12 @@ class OrderController
         $sheet->incrementDownloads($sheet_id);
 
         // Serve file
-        $file_path = __DIR__ . '/..' . $sheet_info['file_path'];
-
-        if (file_exists($file_path)) {
-            header('Content-Description: File Transfer');
-            header('Content-Type: application/pdf');
-            header('Content-Disposition: attachment; filename="' . basename($sheet_info['title'] . '.pdf"'));
-            header('Expires: 0');
-            header('Cache-Control: must-revalidate');
-            header('Pragma: public');
-            header('Content-Length: ' . filesize($file_path));
-            readfile($file_path);
-            exit();
-        } else {
-            http_response_code(404);
-            echo json_encode(['error' => 'File not found']);
-        }
+        header('Content-Description: File Transfer');
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="' . basename($sheet_info['title'] . '.pdf') . '"');
+        header('Content-Length: ' . filesize($fullPath));
+        readfile($fullPath);
+        exit();
     }
 
     private function sendOrderConfirmation($order_id)
