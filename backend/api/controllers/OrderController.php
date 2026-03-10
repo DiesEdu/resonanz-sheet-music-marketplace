@@ -7,6 +7,7 @@ use SheetMusic\Models\Order;
 use SheetMusic\Models\Cart;
 use SheetMusic\Models\SheetMusic;
 use SheetMusic\Middleware\AuthMiddleware;
+use setasign\Fpdi\Fpdi;
 
 class OrderController
 {
@@ -292,12 +293,10 @@ class OrderController
         // Normalize stored path to avoid duplicated /api prefixes
         $baseDir = realpath(__DIR__ . '/..'); // backend/api
         $filePath = ltrim($sheet_info['file_path'], '/');
-        if (str_starts_with($filePath, 'api/')) {
+        if (strpos($filePath, 'api/') === 0) { // Changed from str_starts_with for PHP < 8.0 compatibility
             $filePath = substr($filePath, 4); // drop leading "api/"
         }
         $fullPath = $baseDir ? realpath($baseDir . '/' . $filePath) : false;
-
-        error_log("Serving file resolved to: " . ($fullPath ?: 'null'));
 
         if (!$fullPath || !file_exists($fullPath)) {
             error_log("File does not exist: " . ($fullPath ?: 'unresolved'));
@@ -306,15 +305,76 @@ class OrderController
             return;
         }
 
-        // Increment download count
-        $sheet->incrementDownloads($sheet_id);
+        // Add copyright text to each page
+        try {
+            // Check if FPDI class exists
+            if (!class_exists(Fpdi::class)) {
+                throw new \Exception('FPDI library not loaded');
+            }
+
+            $pdf = new Fpdi();
+            $pdf->SetMargins(0, 0, 0);
+            $pdf->SetAutoPageBreak(false);
+            $pageCount = $pdf->setSourceFile($fullPath);
+            $watermark = '(c) ' . date('Y') . ' Resonanz Sheet Music - For personal use only';
+
+            for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+                $templateId = $pdf->importPage($pageNo);
+                $size = $pdf->getTemplateSize($templateId);
+                $orientation = $size['width'] > $size['height'] ? 'L' : 'P';
+                $pdf->AddPage($orientation, [$size['width'], $size['height']]);
+                $pdf->useTemplate($templateId, 0, 0, $size['width'], $size['height']);
+
+                // Place footer-like copyright
+                $pdf->SetFont('Helvetica', 'I', 9);
+                $pdf->SetTextColor(120, 120, 120);
+
+                // Calculate text width for centering (optional)
+                $textWidth = $pdf->GetStringWidth($watermark);
+                $x = ($size['width'] - $textWidth) / 2; // Center the text
+
+                $pdf->SetXY($x, $size['height'] - 12);
+                $pdf->Cell($textWidth, 8, $watermark, 0, 0, 'L'); // Added parameters for better control
+            }
+
+            // Increment download count AFTER successful PDF generation
+            $sheet->incrementDownloads($sheet_id);
+
+            $output = $pdf->Output('S'); // return as string
+
+        } catch (\Throwable $e) {
+            error_log('PDF stamping failed: ' . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine());
+
+            // Increment download count even if stamping fails? 
+            // If you want to count all downloads regardless of stamping success, move this here
+            $sheet->incrementDownloads($sheet_id);
+
+            // Fallback to original file
+            $output = file_get_contents($fullPath);
+            if ($output === false) {
+                http_response_code(500);
+                echo json_encode(['error' => 'Failed to read file']);
+                return;
+            }
+        }
+
+        // Clean output buffer before sending headers
+        if (ob_get_level()) {
+            ob_end_clean();
+        }
 
         // Serve file
         header('Content-Description: File Transfer');
         header('Content-Type: application/pdf');
-        header('Content-Disposition: attachment; filename="' . basename($sheet_info['title'] . '.pdf') . '"');
-        header('Content-Length: ' . filesize($fullPath));
-        readfile($fullPath);
+
+        // Fix filename - ensure it's properly sanitized
+        $filename = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $sheet_info['title']) . '.pdf';
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Length: ' . strlen($output));
+        header('Cache-Control: private, max-age=0, must-revalidate');
+        header('Pragma: public');
+
+        echo $output;
         exit();
     }
 
