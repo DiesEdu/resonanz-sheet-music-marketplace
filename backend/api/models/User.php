@@ -17,6 +17,7 @@ class User
     public $email;
     public $password;
     public $full_name;
+    public $copyright_name;
     public $verification_token;
     public $avatar;
     public $role;
@@ -34,6 +35,7 @@ class User
                       email = :email,
                       password_hash = :password_hash,
                       full_name = :full_name,
+                      copyright_name = :copyright_name,
                       verification_token = :verification_token";
 
         $stmt = $this->conn->prepare($query);
@@ -42,6 +44,7 @@ class User
         $this->username = htmlspecialchars(strip_tags($this->username));
         $this->email = htmlspecialchars(strip_tags($this->email));
         $this->full_name = htmlspecialchars(strip_tags($this->full_name));
+        $this->copyright_name = htmlspecialchars(strip_tags($this->copyright_name ?? ''));
         $this->verification_token = htmlspecialchars(strip_tags($this->verification_token));
         $this->password = password_hash($this->password, PASSWORD_BCRYPT);
 
@@ -50,6 +53,7 @@ class User
         $stmt->bindParam(':email', $this->email);
         $stmt->bindParam(':password_hash', $this->password);
         $stmt->bindParam(':full_name', $this->full_name);
+        $stmt->bindParam(':copyright_name', $this->copyright_name);
         $stmt->bindParam(':verification_token', $this->verification_token);
 
         if ($stmt->execute()) {
@@ -79,6 +83,7 @@ class User
                 $this->username = $row['username'];
                 $this->email = $row['email'];
                 $this->full_name = $row['full_name'];
+                $this->copyright_name = $row['copyright_name'] ?? null;
                 $this->role = $row['role'];
                 $this->avatar = $row['avatar'];
                 return true;
@@ -107,7 +112,7 @@ class User
 
     public function getById($id)
     {
-        $query = "SELECT id, username, email, full_name, avatar, role, email_verified, created_at 
+        $query = "SELECT id, username, email, full_name, copyright_name, avatar, role, email_verified, created_at 
                   FROM " . $this->table . " WHERE id = :id LIMIT 0,1";
 
         $stmt = $this->conn->prepare($query);
@@ -119,7 +124,7 @@ class User
 
     public function updateProfile($id, $data)
     {
-        $allowedFields = ['username', 'full_name', 'email'];
+        $allowedFields = ['username', 'full_name', 'email', 'copyright_name'];
         $setParts = [];
         $params = [':id' => $id];
 
@@ -250,7 +255,7 @@ class User
 
     public function getAll()
     {
-        $query = "SELECT id, username, email, full_name, role, created_at
+        $query = "SELECT id, username, email, full_name, copyright_name, role, created_at
                   FROM " . $this->table . "
                   ORDER BY created_at DESC";
 

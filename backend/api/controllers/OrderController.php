@@ -6,6 +6,7 @@ use SheetMusic\Config\Database;
 use SheetMusic\Models\Order;
 use SheetMusic\Models\Cart;
 use SheetMusic\Models\SheetMusic;
+use SheetMusic\Models\User;
 use SheetMusic\Middleware\AuthMiddleware;
 use setasign\Fpdi\Fpdi;
 
@@ -27,11 +28,16 @@ class OrderController
     {
         $user_data = AuthMiddleware::authenticate();
         $requestedAction = $action ?? $id;
+        $downloadContext = $this->getDownloadRouteContext();
 
         switch ($method) {
             case 'GET':
-                if ($id && $action === 'download') {
-                    $this->downloadSheet($id, $user_data['id']);
+                if ($downloadContext) {
+                    $this->downloadSheet(
+                        $downloadContext['order_id'],
+                        $downloadContext['sheet_id'],
+                        $user_data
+                    );
                 } elseif ($requestedAction === 'sales') {
                     $this->getComposerSales($user_data);
                 } elseif ($requestedAction === 'downloads') {
@@ -268,16 +274,64 @@ class OrderController
         echo json_encode($sales);
     }
 
-    private function downloadSheet($sheet_id, $user_id)
+    private function downloadSheet($order_id, $sheet_id, $user_data)
     {
-        error_log("Download request - Sheet: $sheet_id | User: $user_id");
+        $order_id = (int) $order_id;
+        $sheet_id = (int) $sheet_id;
+        $user_id = (int) ($user_data['id'] ?? 0);
+        $is_admin = ($user_data['role'] ?? '') === 'admin';
 
-        // Verify purchase
-        if (!$this->order->verifyPurchase($user_id, $sheet_id)) {
-            http_response_code(403);
-            echo json_encode(['error' => 'You have not purchased this item']);
+        if ($order_id <= 0 || $sheet_id <= 0 || $user_id <= 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid download request']);
             return;
         }
+
+        $order = $this->order->getOrderDetails($order_id);
+        if (!$order) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Order not found']);
+            return;
+        }
+
+        $orderUserId = (int) ($order['user_id'] ?? 0);
+        if (!$is_admin && $orderUserId !== $user_id) {
+            http_response_code(403);
+            echo json_encode(['error' => 'You are not allowed to download this order']);
+            return;
+        }
+
+        $isPaid = strtolower((string) ($order['payment_status'] ?? '')) === 'paid';
+        if (!$isPaid) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Payment is not completed for this order']);
+            return;
+        }
+
+        $hasItem = false;
+        foreach ($order['items'] ?? [] as $item) {
+            if ((int) ($item['sheet_id'] ?? 0) === $sheet_id) {
+                $hasItem = true;
+                break;
+            }
+        }
+        if (!$hasItem) {
+            http_response_code(403);
+            echo json_encode(['error' => 'This sheet is not part of the order']);
+            return;
+        }
+
+        // Ensure user has a copyright name before downloading
+        $user = new User($this->db);
+        $userInfo = $user->getById($user_id);
+        $copyrightName = trim((string) ($userInfo['copyright_name'] ?? ''));
+        if ($copyrightName === '') {
+            http_response_code(400);
+            echo json_encode(['error' => 'Please set your copyright name in your profile before downloading.']);
+            return;
+        }
+
+        $totalPurchasedCopies = $this->order->getPurchasedCopiesForSheetInOrder($order_id, $sheet_id);
 
         // Get sheet info
         $sheet = new SheetMusic($this->db);
@@ -316,7 +370,14 @@ class OrderController
             $pdf->SetMargins(0, 0, 0);
             $pdf->SetAutoPageBreak(false);
             $pageCount = $pdf->setSourceFile($fullPath);
-            $watermark = '(c) ' . date('Y') . ' Resonanz Sheet Music - For personal use only';
+            $copyText = ($totalPurchasedCopies == 1) ? 'copy' : 'copies';
+
+            $watermark =
+                '© ' .
+                date('Y') .
+                ' The Resonanz Music Studio. ' .
+                'Commissioned for ' . $copyrightName . '. ' .
+                $totalPurchasedCopies . ' ' . $copyText;
 
             for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
                 $templateId = $pdf->importPage($pageNo);
@@ -392,6 +453,33 @@ class OrderController
         } catch (\Exception $e) {
             return false;
         }
+    }
+
+    private function getDownloadRouteContext()
+    {
+        $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+        $path = str_replace('/api', '', $path);
+        $segments = explode('/', trim($path, '/'));
+
+        if (count($segments) < 4 || $segments[0] !== 'orders') {
+            return null;
+        }
+
+        if ($segments[3] !== 'download') {
+            return null;
+        }
+
+        $orderId = $segments[1] ?? null;
+        $sheetId = $segments[2] ?? null;
+
+        if (!is_numeric($orderId) || !is_numeric($sheetId)) {
+            return null;
+        }
+
+        return [
+            'order_id' => (int) $orderId,
+            'sheet_id' => (int) $sheetId,
+        ];
     }
 }
 ?>

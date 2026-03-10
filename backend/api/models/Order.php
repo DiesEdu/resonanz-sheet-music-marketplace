@@ -245,5 +245,44 @@ class Order
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         return $result['count'] > 0;
     }
+
+    public function getPurchasedCopiesForSheetInOrder($order_id, $sheet_id)
+    {
+        $query = "SELECT COALESCE(SUM(oi.quantity), 0) as total
+                  FROM order_items oi
+                  JOIN orders o ON oi.order_id = o.id
+                  WHERE o.id = :order_id
+                  AND oi.sheet_id = :sheet_id
+                  AND o.payment_status = 'paid'";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':order_id', $order_id);
+        $stmt->bindParam(':sheet_id', $sheet_id);
+        $stmt->execute();
+
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return (int) ($result['total'] ?? 0);
+    }
+
+    public function getPurchasedCopiesForSheetInLatestOrder($user_id, $sheet_id)
+    {
+        $query = "SELECT COALESCE(SUM(oi.quantity), 0) as total
+                  FROM order_items oi
+                  JOIN orders o ON oi.order_id = o.id
+                  WHERE o.user_id = :user_id
+                  AND oi.sheet_id = :sheet_id
+                  AND o.payment_status = 'paid'
+                  GROUP BY o.id
+                  ORDER BY o.created_at DESC, o.id DESC
+                  LIMIT 1";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':user_id', $user_id);
+        $stmt->bindParam(':sheet_id', $sheet_id);
+        $stmt->execute();
+
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return (int) ($result['total'] ?? 0);
+    }
 }
 ?>

@@ -25,6 +25,10 @@
             {{ loadError }}
           </div>
 
+          <div v-if="!hasCopyrightName" class="alert alert-warning py-2 mb-3" role="alert">
+            Please set your copyright name in your profile before downloading purchased PDFs.
+          </div>
+
           <div v-if="isLoading" class="text-center py-5">
             <div class="spinner-border text-primary" role="status"></div>
             <p class="text-muted mt-3 mb-0">Loading your order history...</p>
@@ -170,7 +174,7 @@
                         v-if="canDownloadItem(order, item)"
                         type="button"
                         class="btn btn-sm btn-outline-success"
-                        :disabled="downloadState[item.sheet_id]?.downloading"
+                        :disabled="downloadState[item.sheet_id]?.downloading || !hasCopyrightName"
                         @click="downloadItem(order, item)"
                       >
                         <span
@@ -261,6 +265,7 @@ const showCancelConfirm = ref(false)
 const cancelTargetOrder = ref(null)
 const cancelSuccessMessage = ref('')
 let cancelSuccessTimer = null
+let authUserListener = null
 
 function handleUnauthorized(errorMessage) {
   const normalized = `${errorMessage || ''}`.toLowerCase()
@@ -317,6 +322,21 @@ function resolveOrderId(order) {
   const numeric = Number(rawId)
   return Number.isInteger(numeric) && numeric > 0 ? numeric : null
 }
+
+function readAuthUser() {
+  const raw = localStorage.getItem('auth_user')
+  if (!raw) return null
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+const authUser = ref(readAuthUser())
+const hasCopyrightName = computed(() => {
+  return Boolean(`${authUser.value?.copyright_name || ''}`.trim())
+})
 
 function ensureDetailsState(orderId) {
   if (!orderDetailsState.value[orderId]) {
@@ -535,6 +555,10 @@ async function confirmCancelOrder() {
 async function downloadItem(order, item) {
   const sheetId = item?.sheet_id
   if (!sheetId || !canDownloadItem(order, item)) return
+  if (!hasCopyrightName.value) {
+    loadError.value = 'Please set your copyright name in your profile before downloading.'
+    return
+  }
 
   ensureDownloadState(sheetId)
   const state = downloadState.value[sheetId]
@@ -543,7 +567,7 @@ async function downloadItem(order, item) {
   state.downloading = true
   loadError.value = ''
   try {
-    await orderStore.downloadSheet(sheetId, item.title || 'sheet-music')
+    await orderStore.downloadSheet(sheetId, item.title || 'sheet-music', order._orderId)
   } catch (error) {
     const message = error?.message || 'Unable to download file.'
     if (handleUnauthorized(message)) return
@@ -555,10 +579,17 @@ async function downloadItem(order, item) {
 
 onMounted(() => {
   loadOrders()
+  authUserListener = () => {
+    authUser.value = readAuthUser()
+  }
+  window.addEventListener('auth-changed', authUserListener)
 })
 
 onBeforeUnmount(() => {
   if (cancelSuccessTimer) clearTimeout(cancelSuccessTimer)
+  if (authUserListener) {
+    window.removeEventListener('auth-changed', authUserListener)
+  }
 })
 </script>
 

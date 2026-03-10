@@ -119,6 +119,7 @@ class AuthController
                         'username' => $this->user->username,
                         'email' => $this->user->email,
                         'full_name' => $this->user->full_name,
+                        'copyright_name' => $this->user->copyright_name,
                         'role' => $this->user->role,
                         'avatar' => $this->user->avatar
                     ]
@@ -142,6 +143,7 @@ class AuthController
             $this->user->email = $data->email;
             $this->user->password = $data->password;
             $this->user->full_name = $data->full_name ?? '';
+            $this->user->copyright_name = $data->copyright_name ?? '';
 
             $verification_token = bin2hex(random_bytes(32));
             $this->user->verification_token = $verification_token;
@@ -161,6 +163,7 @@ class AuthController
                         'username' => $this->user->username,
                         'email' => $this->user->email,
                         'full_name' => $this->user->full_name,
+                        'copyright_name' => $this->user->copyright_name,
                         'role' => $this->user->role
                     ]
                 ]);

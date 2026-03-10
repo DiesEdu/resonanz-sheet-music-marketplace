@@ -291,10 +291,11 @@ export const useOrderStore = defineStore('order', () => {
     }
   }
 
-  const downloadSheet = async (sheetId, filename = 'sheet-music.pdf') => {
+  const downloadSheet = async (sheetId, filename = 'sheet-music.pdf', orderId) => {
     if (!sheetId) throw new Error('Sheet ID is required')
+    if (!orderId) throw new Error('Order ID is required')
 
-    const response = await fetch(`${API_BASE_URL}/orders/${sheetId}/download`, {
+    const response = await fetch(`${API_BASE_URL}/orders/${orderId}/${sheetId}/download`, {
       method: 'GET',
       headers: getAuthHeaders(),
     })

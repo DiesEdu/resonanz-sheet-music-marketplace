@@ -27,3 +27,5 @@ ALTER TABLE sheet_music ADD COLUMN arranger VARCHAR(255) NULL AFTER composer;
 ---------------------------------------------------------------------
 ALTER TABLE sheet_music ADD COLUMN sample_audio VARCHAR(255) NULL AFTER file_path;
 ---------------------------------------------------------------------
+ALTER TABLE users
+ADD copyright_name VARCHAR(150) NULL AFTER full_name;

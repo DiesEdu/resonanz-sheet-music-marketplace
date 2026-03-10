@@ -77,6 +77,39 @@
               </button>
             </form>
 
+            <form @submit.prevent="updateCopyrightName" class="mb-4" novalidate>
+              <h2 class="h5 mb-3">Copyright Name</h2>
+              <p class="text-muted small mb-3">
+                This name will be required before you can download purchased PDFs.
+              </p>
+              <div class="mb-3">
+                <label for="copyrightName" class="form-label">Copyright Name</label>
+                <input
+                  id="copyrightName"
+                  v-model.trim="copyrightForm.copyright_name"
+                  type="text"
+                  class="form-control"
+                  required
+                />
+              </div>
+
+              <div v-if="copyrightError" class="alert alert-danger py-2" role="alert">
+                {{ copyrightError }}
+              </div>
+              <div v-if="copyrightSuccess" class="alert alert-success py-2" role="alert">
+                {{ copyrightSuccess }}
+              </div>
+
+              <button type="submit" class="btn btn-primary" :disabled="isUpdatingCopyright">
+                <span
+                  v-if="isUpdatingCopyright"
+                  class="spinner-border spinner-border-sm me-2"
+                  role="status"
+                ></span>
+                {{ isUpdatingCopyright ? 'Updating...' : 'Save Copyright Name' }}
+              </button>
+            </form>
+
             <form @submit.prevent="changePassword" novalidate>
               <h2 class="h5 mb-3">Change Password</h2>
               <div class="mb-3">
@@ -147,10 +180,15 @@ const profile = reactive({
   username: '',
   email: '',
   email_verified: 0,
+  copyright_name: '',
 })
 
 const usernameForm = reactive({
   username: '',
+})
+
+const copyrightForm = reactive({
+  copyright_name: '',
 })
 
 const passwordForm = reactive({
@@ -162,11 +200,14 @@ const passwordForm = reactive({
 const loadError = ref('')
 const usernameError = ref('')
 const usernameSuccess = ref('')
+const copyrightError = ref('')
+const copyrightSuccess = ref('')
 const passwordError = ref('')
 const passwordSuccess = ref('')
 const verificationError = ref('')
 const verificationSuccess = ref('')
 const isUpdatingUsername = ref(false)
+const isUpdatingCopyright = ref(false)
 const isChangingPassword = ref(false)
 const isSendingVerification = ref(false)
 
@@ -213,7 +254,9 @@ async function loadProfile() {
     profile.username = payload.username ?? ''
     profile.email = payload.email ?? ''
     profile.email_verified = payload.email_verified ?? 0
+    profile.copyright_name = payload.copyright_name ?? ''
     usernameForm.username = payload.username ?? ''
+    copyrightForm.copyright_name = payload.copyright_name ?? ''
 
     localStorage.setItem('auth_user', JSON.stringify(payload))
     window.dispatchEvent(new Event('auth-changed'))
@@ -261,6 +304,7 @@ async function updateUsername() {
     profile.username = latestUser.username ?? usernameForm.username
     profile.email = latestUser.email ?? profile.email
     profile.email_verified = latestUser.email_verified ?? profile.email_verified
+    profile.copyright_name = latestUser.copyright_name ?? profile.copyright_name
 
     localStorage.setItem('auth_user', JSON.stringify(latestUser))
     window.dispatchEvent(new Event('auth-changed'))
@@ -269,6 +313,57 @@ async function updateUsername() {
     usernameError.value = 'Network error while updating username.'
   } finally {
     isUpdatingUsername.value = false
+  }
+}
+
+async function updateCopyrightName() {
+  copyrightError.value = ''
+  copyrightSuccess.value = ''
+
+  if (!copyrightForm.copyright_name) {
+    copyrightError.value = 'Copyright name is required.'
+    return
+  }
+
+  isUpdatingCopyright.value = true
+  const token = requireToken()
+  if (!token) {
+    isUpdatingCopyright.value = false
+    return
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        copyright_name: copyrightForm.copyright_name,
+      }),
+    })
+
+    const payload = await response.json()
+
+    if (!response.ok) {
+      copyrightError.value = payload.error || 'Failed to update copyright name.'
+      return
+    }
+
+    const latestUser = payload.user && typeof payload.user === 'object' ? payload.user : { ...profile }
+    profile.username = latestUser.username ?? profile.username
+    profile.email = latestUser.email ?? profile.email
+    profile.email_verified = latestUser.email_verified ?? profile.email_verified
+    profile.copyright_name = latestUser.copyright_name ?? copyrightForm.copyright_name
+
+    localStorage.setItem('auth_user', JSON.stringify(latestUser))
+    window.dispatchEvent(new Event('auth-changed'))
+    copyrightSuccess.value = payload.message || 'Copyright name updated successfully.'
+  } catch {
+    copyrightError.value = 'Network error while updating copyright name.'
+  } finally {
+    isUpdatingCopyright.value = false
   }
 }
 
