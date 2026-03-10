@@ -308,6 +308,12 @@ class OrderController
             return;
         }
 
+        if (strtolower((string) ($order['status'] ?? '')) === 'cancelled') {
+            http_response_code(403);
+            echo json_encode(['error' => 'Cancelled orders cannot be downloaded']);
+            return;
+        }
+
         $hasItem = false;
         foreach ($order['items'] ?? [] as $item) {
             if ((int) ($item['sheet_id'] ?? 0) === $sheet_id) {
@@ -396,6 +402,11 @@ class OrderController
 
                 $pdf->SetXY($x, $size['height'] - 12);
                 $pdf->Cell($textWidth, 8, $watermark, 0, 0, 'L'); // Added parameters for better control
+            }
+
+            // Mark order completed once a download is generated
+            if (strtolower((string) ($order['status'] ?? '')) !== 'completed') {
+                $this->order->updateStatus($order_id, 'completed');
             }
 
             // Increment download count AFTER successful PDF generation

@@ -386,7 +386,8 @@ function isPaid(order) {
 }
 
 function canDownloadItem(order, item) {
-  return isPaid(order) && Boolean(item?.sheet_id)
+  const status = `${order?.status || ''}`.toLowerCase()
+  return isPaid(order) && status !== 'completed' && Boolean(item?.sheet_id)
 }
 
 async function loadOrders(options = {}) {
@@ -568,6 +569,9 @@ async function downloadItem(order, item) {
   loadError.value = ''
   try {
     await orderStore.downloadSheet(sheetId, item.title || 'sheet-music', order._orderId)
+    orders.value = orders.value.map((entry) =>
+      entry?._orderId === order._orderId ? { ...entry, status: 'completed' } : entry,
+    )
   } catch (error) {
     const message = error?.message || 'Unable to download file.'
     if (handleUnauthorized(message)) return
