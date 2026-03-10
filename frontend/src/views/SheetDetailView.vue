@@ -57,6 +57,22 @@
         </div>
       </div>
 
+      <!-- Audio Preview -->
+      <div class="row mt-5">
+        <div class="col-12">
+          <h3>Audio Preview</h3>
+          <div v-if="previewAudioUrl" class="audio-preview-wrapper">
+            <audio :src="previewAudioUrl" controls preload="none" class="w-100">
+              Your browser does not support audio playback.
+            </audio>
+          </div>
+          <div v-else class="bg-light p-4 text-center rounded">
+            <i class="bi bi-music-note-beamed" style="font-size: 2rem"></i>
+            <p class="text-muted mb-0 mt-2">Sample audio preview is not available for this sheet.</p>
+          </div>
+        </div>
+      </div>
+
       <!-- Sample Preview -->
       <div class="row mt-5">
         <div class="col-12">
@@ -165,6 +181,12 @@ const previewPdfUrl = computed(() => {
   return `${assetUrl}${hashSeparator}toolbar=0&navpanes=0&scrollbar=0&page=1&view=FitH`
 })
 
+const previewAudioUrl = computed(() => {
+  const audioPath = sheet.value?.sample_audio || ''
+  if (!audioPath) return ''
+  return buildAssetUrl(audioPath)
+})
+
 function buildAssetUrl(path) {
   if (!path) return ''
   if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('blob:')) {
@@ -241,6 +263,13 @@ function addToCart(event) {
   border: 1px solid #dee2e6;
   border-radius: 12px;
   overflow: hidden;
+  background: #f8f9fa;
+}
+
+.audio-preview-wrapper {
+  border: 1px solid #dee2e6;
+  border-radius: 12px;
+  padding: 1rem;
   background: #f8f9fa;
 }
 
