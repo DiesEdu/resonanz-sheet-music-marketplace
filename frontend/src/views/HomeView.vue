@@ -15,7 +15,7 @@
               <router-link to="/marketplace" class="btn btn-primary btn-lg">
                 <i class="bi bi-shop"></i> Browse Marketplace
               </router-link>
-              <button class="btn btn-outline-gold btn-lg" @click="playDemo">
+              <button class="btn btn-outline-gold btn-lg" @click="openVideoModal">
                 <i class="bi bi-play-circle"></i> Watch Demo
               </button>
             </div>
@@ -134,6 +134,21 @@
         </div>
       </div>
     </div>
+
+    <!-- Video Demo Modal -->
+    <div v-if="showVideoModal" class="video-modal-overlay" @click="closeVideoModal">
+      <div class="video-modal-content" @click.stop>
+        <button class="video-modal-close" @click="closeVideoModal">
+          <i class="bi bi-x-lg"></i>
+        </button>
+        <div class="video-wrapper">
+          <video ref="videoPlayer" controls autoplay class="demo-video" @ended="onVideoEnded">
+            <source :src="videoUrl" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+        </div>
+      </div>
+    </div>
   </main>
 </template>
 
@@ -146,6 +161,32 @@ import choirIcon from '../assets/png/choir.png'
 import musicIcon from '../assets/png/music.png'
 
 const sheetStore = useSheetMusicStore()
+
+// Video modal state
+const showVideoModal = ref(false)
+const videoPlayer = ref(null)
+const videoUrl = computed(() => {
+  // Use proxy path - Vite will forward to backend
+  return '/api/uploads/mp4/demo_scores.mp4'
+})
+
+function openVideoModal() {
+  showVideoModal.value = true
+}
+
+function closeVideoModal() {
+  showVideoModal.value = false
+  // Pause video if playing
+  if (videoPlayer.value) {
+    videoPlayer.value.pause()
+    videoPlayer.value.currentTime = 0
+  }
+}
+
+function onVideoEnded() {
+  // Optional: auto-close when video ends
+  console.log('Demo video ended')
+}
 
 onMounted(() => {
   sheetStore.fetchSheetBySearch()
@@ -198,11 +239,6 @@ const testimonials = ref([
 
 function handleInstrumentItemClick() {
   window.scrollTo({ top: 0, behavior: 'smooth' })
-}
-
-function playDemo() {
-  // Demo video modal would go here
-  alert('Demo video would play here')
 }
 </script>
 
@@ -303,5 +339,89 @@ function playDemo() {
   50% {
     transform: translateY(-6px);
   }
+}
+
+/* Video Modal Styles */
+.video-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.video-modal-content {
+  position: relative;
+  width: 90%;
+  max-width: 900px;
+  background: #1a1a1a;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+  animation: scaleIn 0.3s ease;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.video-modal-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  transition: all 0.3s ease;
+  z-index: 10;
+}
+
+.video-modal-close:hover {
+  background: rgba(197, 165, 114, 0.8);
+  transform: rotate(90deg);
+}
+
+.video-wrapper {
+  position: relative;
+  padding-top: 56.25%; /* 16:9 aspect ratio */
+}
+
+.demo-video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 </style>

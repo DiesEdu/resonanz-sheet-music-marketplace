@@ -134,25 +134,46 @@ try {
         case 'uploads':
             // Serve uploaded files
             $relativePath = implode('/', array_slice($segments, 1));
-            $uploadsRoot = realpath(__DIR__ . '/api/uploads');
-            $filePath = realpath(__DIR__ . '/api/uploads/' . $relativePath);
+            $uploadsRoot = __DIR__ . '/api/uploads';
+            $filePath = $uploadsRoot . '/' . $relativePath;
 
-            if ($uploadsRoot && $filePath && str_starts_with($filePath, $uploadsRoot) && file_exists($filePath)) {
-                $finfo = new finfo(FILEINFO_MIME_TYPE);
-                $mime_type = $finfo->file($filePath) ?: 'application/octet-stream';
+            // Security check: ensure file is within uploads directory
+            $realPath = realpath($filePath);
+            $realUploadsRoot = realpath($uploadsRoot);
 
-                header("Content-Type: " . $mime_type);
-                header("Content-Length: " . filesize($filePath));
-                header("Content-Disposition: inline; filename=\"" . basename($filePath) . "\"");
-                header("Accept-Ranges: bytes");
-                if ($_SERVER['REQUEST_METHOD'] === 'HEAD') {
-                    exit();
+            if ($realUploadsRoot && $realPath && str_starts_with($realPath, $realUploadsRoot) && file_exists($realPath)) {
+                // Get file extension
+                $extension = strtolower(pathinfo($realPath, PATHINFO_EXTENSION));
+
+                // Set Content-Type based on extension
+                $mimeTypes = [
+                    'mp4' => 'video/mp4',
+                    'webm' => 'video/webm',
+                    'ogg' => 'video/ogg',
+                    'mov' => 'video/quicktime',
+                    'avi' => 'video/x-msvideo',
+                ];
+                $contentType = $mimeTypes[$extension] ?? 'application/octet-stream';
+
+                // Clear any previous output
+                if (ob_get_level()) {
+                    ob_end_clean();
                 }
-                readfile($filePath);
+
+                header('Content-Type: ' . $contentType);
+                header('Content-Length: ' . filesize($realPath));
+                header('Content-Disposition: inline; filename="' . basename($realPath) . '"');
+                header('Accept-Ranges: bytes');
+                header('Cache-Control: no-cache, must-revalidate');
+                header('Pragma: public');
+
+                // Read and output file
+                readfile($realPath);
                 exit();
             } else {
                 http_response_code(404);
-                echo json_encode(['error' => 'File not found']);
+                header('Content-Type: application/json');
+                echo json_encode(['error' => 'File not found: ' . $relativePath]);
             }
             break;
 

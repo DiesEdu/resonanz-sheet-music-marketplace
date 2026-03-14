@@ -12,10 +12,22 @@
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
     
-    # Redirect everything to index.php
+    # Pass uploads through index.php for proper routing
+    RewriteCond %{REQUEST_URI} ^/api/uploads/ [NC]
+    RewriteRule ^api/uploads/(.*)$ index.php [QSA,L]
+    
+    # Redirect everything else to index.php
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^(.*)$ index.php [QSA,L]
+</IfModule>
+
+# Add MIME types for video files
+<IfModule mod_mime.c>
+    AddType video/mp4 .mp4
+    AddType video/webm .webm
+    AddType video/ogg .ogg
+    AddType video/quicktime .mov
 </IfModule>
 
 # Security headers
