@@ -40,12 +40,25 @@ export const useSheetMusicStore = defineStore('sheetMusic', () => {
         difficulty: difficulty || '',
         search: search || '',
       })
-      const response = await fetch(`${API_BASE_URL}/sheets?${queryParams}`)
-      const result = await response.json()
 
+      // Create abort controller with timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+
+      const response = await fetch(`${API_BASE_URL}/sheets?${queryParams}`, {
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
       sheets.value = result.data || []
     } catch (error) {
       console.error('Failed to fetch sheets:', error)
+      // Keep existing sheets if fetch fails, don't clear them
     }
   }
 

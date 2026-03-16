@@ -4,18 +4,22 @@
       <div class="text-center text-muted">Loading sheet detail...</div>
     </div>
 
-    <div class="container py-5" v-else-if="sheet">
+    <div class="container py-5" v-else-if="normalizedSheet">
       <div class="row">
         <div class="col-md-5">
-          <img :src="sheet.cover_image" :alt="sheet.title" class="img-fluid rounded shadow" />
+          <img
+            :src="normalizedSheet.cover_image"
+            :alt="normalizedSheet.title"
+            class="img-fluid rounded shadow"
+          />
         </div>
         <div class="col-md-7">
-          <h1>{{ sheet.title }}</h1>
-          <h3 class="text-muted mb-4">{{ sheet.composer }}</h3>
+          <h1>{{ normalizedSheet.title }}</h1>
+          <h3 class="text-muted mb-4">{{ normalizedSheet.composer }}</h3>
 
           <div class="mb-4">
-            <span class="badge bg-primary me-2">{{ sheet.instrument }}</span>
-            <span class="badge bg-secondary">{{ sheet.difficulty }}</span>
+            <span class="badge bg-primary me-2">{{ normalizedSheet.instrument }}</span>
+            <span class="badge bg-secondary">{{ normalizedSheet.difficulty }}</span>
           </div>
 
           <div class="mb-4">
@@ -24,22 +28,24 @@
                 <i
                   v-for="n in 5"
                   :key="n"
-                  :class="n <= sheet.rating ? 'bi bi-star-fill' : 'bi bi-star'"
+                  :class="n <= normalizedSheet.rating ? 'bi bi-star-fill' : 'bi bi-star'"
                 ></i>
               </div>
-              <span>{{ sheet.rating }} ({{ sheet.reviews }} reviews)</span>
+              <span>{{ normalizedSheet.rating }} ({{ normalizedSheet.reviews }} reviews)</span>
             </div>
           </div>
 
-          <p class="lead mb-4">{{ sheet.description }}</p>
+          <p class="lead mb-4">{{ normalizedSheet.description }}</p>
 
           <div class="row mb-4">
-            <div class="col-md-6"><strong>Pages:</strong> {{ sheet.pages }}</div>
-            <div class="col-md-6"><strong>Format:</strong> {{ sheet.format }}</div>
+            <div class="col-md-6"><strong>Pages:</strong> {{ normalizedSheet.pages }}</div>
+            <div class="col-md-6"><strong>Format:</strong> {{ normalizedSheet.format }}</div>
           </div>
 
           <div class="d-flex align-items-center mb-4">
-            <h2 class="text-primary mb-0 me-4">{{ formatPriceIDRWithCommas(sheet.price) }}</h2>
+            <h2 class="text-primary mb-0 me-4">
+              {{ formatPriceIDRWithCommas(normalizedSheet.price) }}
+            </h2>
             <button class="btn btn-primary btn-lg" @click="addToCart">
               <i class="bi bi-cart-plus"></i> Add to Cart
             </button>
@@ -68,7 +74,9 @@
           </div>
           <div v-else class="bg-light p-4 text-center rounded">
             <i class="bi bi-music-note-beamed" style="font-size: 2rem"></i>
-            <p class="text-muted mb-0 mt-2">Sample audio preview is not available for this sheet.</p>
+            <p class="text-muted mb-0 mt-2">
+              Sample audio preview is not available for this sheet.
+            </p>
           </div>
         </div>
       </div>
@@ -86,13 +94,17 @@
             @paste.prevent="preventPreviewAction"
             @dragstart.prevent="preventPreviewAction"
           >
-            <iframe
-              :src="previewPdfUrl"
-              class="pdf-preview-frame"
-              title="Sheet music sample preview"
-              loading="lazy"
-              referrerpolicy="no-referrer"
-            ></iframe>
+            <div v-if="isPdfLoading" class="pdf-loading-placeholder">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+            </div>
+            <img
+              v-else
+              :src="pdfPreviewImage"
+              alt="Sheet music sample preview - Page 1"
+              class="pdf-page-preview"
+            />
             <div class="preview-shield" @mousedown.prevent @contextmenu.prevent>
               <div class="preview-watermark">SAMPLE PREVIEW</div>
             </div>
@@ -123,6 +135,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { useSheetMusicStore } from '../stores/sheetMusic'
 import { useCartStore } from '../stores/cart'
 import { formatPriceIDRWithCommas } from '../utils/priceUtils'
+import * as pdfjsLib from 'pdfjs-dist'
+
+// Set worker source for PDF.js using jsdelivr CDN (v3.11.174)
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -135,6 +152,19 @@ const sheet = ref(null)
 const showAddedMessage = ref(false)
 const isLoading = ref(true)
 const loadError = ref('')
+const pdfPreviewImage = ref('')
+const isPdfLoading = ref(false)
+
+// Normalize sheet data for template compatibility
+const normalizedSheet = computed(() => {
+  if (!sheet.value) return null
+  return {
+    ...sheet.value,
+    // Map API fields to template expected fields
+    instrument: sheet.value.instrument_name || sheet.value.instrument || '',
+    reviews: sheet.value.reviews_count ?? sheet.value.reviews ?? 0,
+  }
+})
 
 onMounted(loadSheet)
 
@@ -158,28 +188,39 @@ async function loadSheet() {
     return
   }
 
-  if (!sheetStore.sheets.length) {
-    await sheetStore.fetchSheetBySearch()
-  }
+  try {
+    if (!sheetStore.sheets.length) {
+      await sheetStore.fetchSheetBySearch()
+    }
 
-  sheet.value = sheetStore.sheets.find((item) => Number(item.id) === id) || null
-  if (!sheet.value) {
-    loadError.value = 'Sheet data was not returned by the server.'
+    sheet.value = sheetStore.sheets.find((item) => Number(item.id) === id) || null
+    if (!sheet.value) {
+      loadError.value = 'Sheet data was not returned by the server.'
+    }
+  } catch (error) {
+    console.error('Error loading sheet:', error)
+    loadError.value = 'Failed to load sheet. Please try again.'
+  } finally {
+    isLoading.value = false
   }
-
-  isLoading.value = false
 }
 
 const previewPdfUrl = computed(() => {
   const filePath = sheet.value?.file_path || ''
   if (!filePath) return ''
-
-  const assetUrl = buildAssetUrl(filePath)
-  if (!assetUrl) return ''
-
-  const hashSeparator = assetUrl.includes('#') ? '&' : '#'
-  return `${assetUrl}${hashSeparator}toolbar=0&navpanes=0&scrollbar=0&page=1&view=FitH`
+  return buildAssetUrl(filePath)
 })
+
+// Watch for preview PDF URL changes and render the PDF
+watch(
+  previewPdfUrl,
+  (newUrl) => {
+    if (newUrl) {
+      renderPdfPageAsImage(newUrl)
+    }
+  },
+  { immediate: true },
+)
 
 const previewAudioUrl = computed(() => {
   const audioPath = sheet.value?.sample_audio || ''
@@ -201,6 +242,54 @@ function buildAssetUrl(path) {
   }
 }
 
+async function renderPdfPageAsImage(pdfUrl) {
+  if (!pdfUrl || isPdfLoading.value) return
+
+  isPdfLoading.value = true
+  pdfPreviewImage.value = ''
+
+  try {
+    // Fetch PDF as blob to avoid CORS issues with direct PDF.js loading
+    const response = await fetch(pdfUrl, {
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch PDF: ${response.status}`)
+    }
+
+    const blob = await response.blob()
+    const arrayBuffer = await blob.arrayBuffer()
+
+    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer })
+    const pdf = await loadingTask.promise
+    const page = await pdf.getPage(1) // Get first page only
+
+    const viewport = page.getViewport({ scale: 1.5 })
+    const canvas = document.createElement('canvas')
+    const context = canvas.getContext('2d')
+
+    canvas.height = viewport.height
+    canvas.width = viewport.width
+
+    const renderContext = {
+      canvasContext: context,
+      viewport: viewport,
+    }
+
+    await page.render(renderContext).promise
+
+    // Convert canvas to image URL
+    pdfPreviewImage.value = canvas.toDataURL('image/jpeg', 0.85)
+  } catch (error) {
+    console.error('Error rendering PDF page:', error)
+    // Fallback to iframe if PDF.js fails
+    pdfPreviewImage.value = ''
+  } finally {
+    isPdfLoading.value = false
+  }
+}
+
 function preventPreviewAction(event) {
   event.preventDefault()
 }
@@ -217,7 +306,7 @@ function addToCart(event) {
     return
   }
 
-  cartStore.addToCart(sheet.value)
+  cartStore.addToCart(normalizedSheet)
 
   // Show animation
   showAddedMessage.value = true
@@ -280,6 +369,23 @@ function addToCart(event) {
   pointer-events: none;
 }
 
+.pdf-loading-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  background: #f8f9fa;
+}
+
+.pdf-page-preview {
+  width: 100%;
+  height: auto;
+  display: block;
+  max-height: 520px;
+  object-fit: contain;
+  background: #fff;
+}
+
 .preview-shield {
   position: absolute;
   inset: 0;
@@ -290,11 +396,17 @@ function addToCart(event) {
 }
 
 .preview-watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-18deg);
+
   font-weight: 700;
   letter-spacing: 0.14em;
-  color: rgba(33, 37, 41, 0.35);
-  font-size: clamp(1rem, 2.5vw, 1.5rem);
-  transform: rotate(-18deg);
+  color: rgba(33, 37, 41, 0.5);
+  font-size: clamp(5rem, 2.5vw, 1.5rem);
+
   user-select: none;
+  pointer-events: none;
 }
 </style>
