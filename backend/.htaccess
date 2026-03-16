@@ -12,8 +12,9 @@
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
     
-    # Pass uploads through index.php for proper routing
+    # Pass uploads through index.php for proper routing (except PDF files)
     RewriteCond %{REQUEST_URI} ^/api/uploads/ [NC]
+    RewriteCond %{REQUEST_URI} !\.pdf$ [NC]
     RewriteRule ^api/uploads/(.*)$ index.php [QSA,L]
     
     # Redirect everything else to index.php
@@ -34,6 +35,14 @@
 <IfModule mod_headers.c>
     Header set X-Content-Type-Options "nosniff"
     Header set X-XSS-Protection "1; mode=block"
+    
+    # CORS headers for PDF files to allow embedding in iframes
+    <FilesMatch "\.pdf$">
+        Header set Access-Control-Allow-Origin "*"
+        Header set Access-Control-Allow-Methods "GET, OPTIONS"
+        Header set Access-Control-Allow-Headers "Content-Type"
+        Header set X-Frame-Options "ALLOW-FROM *"
+    </FilesMatch>
 </IfModule>
 
 # Disable directory browsing
